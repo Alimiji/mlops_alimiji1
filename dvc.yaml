@@ -1,0 +1,35 @@
+stages:
+  make_dataset:
+    cmd: python src/data/make_dataset.py
+    deps:
+      - data/raw/london_weather.csv
+    outs:
+      - data/interim
+      - data/processed
+
+  build_features:
+    cmd: python src/features/build_features.py
+    deps:
+      - data/processed
+    outs:
+      - data/features/random_forest
+
+  train:
+    cmd: python src/models/train_model.py
+    deps:
+      - data/features/random_forest/X_train.npy
+      - data/features/random_forest/y_train.npy
+    outs:
+      - models/random_forest/Production/model.pkl
+      - models/random_forest/Production/model_info.json
+
+  evaluate:
+    cmd: python src/models/evaluate_model.py --model-path models/random_forest/Production/model.pkl
+    deps:
+      - models/random_forest/Production/model.pkl
+      - data/features/random_forest/X_valid.npy
+      - data/features/random_forest/y_valid.npy
+      - data/features/random_forest/X_test.npy
+      - data/features/random_forest/y_test.npy
+    metrics:
+      - metrics.json
