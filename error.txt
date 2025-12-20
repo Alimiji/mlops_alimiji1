@@ -1,0 +1,22 @@
+(.venv) alimijileking@alimijileking:~/Documents/ml_projects/mlops_alimiji1$ dvc push
+Collecting                                                                                                          |0.00 [00:00,    ?entry/s]/home/alimijileking/Documents/ml_projects/mlops_alimiji1/.venv/lib/python3.10/site-packages/google/api_core/_python_version_support.py:266: FutureWarning: You are using a Python version (3.10.12) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
+  warnings.warn(message, FutureWarning)
+Collecting                                                                                                          |7.00 [00:02, 2.86entry/s]
+WARNING: Some of the cache files do not exist neither locally nor on remote. Missing cache files:
+md5: 53f6eb9528b933174705bfde4c65451f.dir
+md5: dba6a260942616d995bfab2977e525c0
+md5: eed9b0ac3db97a7dd89730bdcdd856d4.dir
+md5: 0ddd5de517864f9a4d19578ffe7646df.dir
+md5: 0a048611804078005b8272eb26b4d779
+md5: 7055d01ce02d13b42c20506e1c116f2f
+
+ERROR: failed to transfer '5e850d8fbeb83af0dbb809638e1a78d6'
+
+- <HttpError 403 when requesting
+https://www.googleapis.com/drive/v2/files?supportsAllDrives=true&alt=json
+returned "Insufficient permissions for the specified parent.".
+Details: "[{'message': 'Insufficient permissions for the specified parent.',
+'domain': 'global', 'reason': 'forbidden', 'location': 'parent.permissions',
+'locationType': 'other'}]">
+Pushing
+ERROR: failed to push data to the cloud - 1 files failed to upload
