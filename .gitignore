@@ -8,8 +8,17 @@ __pycache__/
 *.h5
 *.pt
 mlruns/
-data/
-models/
+# Ignore all data files
+data/**
+
+# Re-allow directories
+!data/
+!data/**/
+
+# Track DVC metadata
+!data/**/*.dvc
+!data/**/*.yaml
+
 src/models/mlflow.db
 src/models/mlruns
 !src/models/train_model.py
