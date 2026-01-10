@@ -1,0 +1,252 @@
+name: Model Validation Gate
+
+on:
+  workflow_run:
+    workflows: ["MLflow Experiment Tracking", "DVC Pipeline"]
+    types:
+      - completed
+  pull_request:
+    branches: [master, main]
+    paths:
+      - 'src/models/**'
+      - 'params.yaml'
+      - 'metrics.json'
+  workflow_dispatch:
+    inputs:
+      metrics_file:
+        description: 'Path to metrics JSON file'
+        required: false
+        default: 'metrics.json'
+
+env:
+  # Model performance thresholds
+  MAX_RMSE_TEST: 1.5
+  MIN_R2_TEST: 0.90
+  MAX_RMSE_VALID: 1.2
+  MIN_R2_VALID: 0.92
+
+jobs:
+  validate-metrics:
+    runs-on: ubuntu-latest
+    outputs:
+      validation_passed: ${{ steps.validate.outputs.passed }}
+      rmse_test: ${{ steps.metrics.outputs.rmse_test }}
+      r2_test: ${{ steps.metrics.outputs.r2_test }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download metrics artifact (if from workflow_run)
+        if: github.event_name == 'workflow_run'
+        uses: actions/download-artifact@v4
+        with:
+          name: metrics
+          path: ./
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+        continue-on-error: true
+
+      - name: Check metrics file exists
+        id: check_file
+        run: |
+          METRICS_FILE="${{ github.event.inputs.metrics_file || 'metrics.json' }}"
+          if [ -f "$METRICS_FILE" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "Metrics file found: $METRICS_FILE"
+            cat "$METRICS_FILE"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "Warning: Metrics file not found at $METRICS_FILE"
+          fi
+
+      - name: Set up Python
+        if: steps.check_file.outputs.exists == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Extract metrics
+        id: metrics
+        if: steps.check_file.outputs.exists == 'true'
+        run: |
+          METRICS_FILE="${{ github.event.inputs.metrics_file || 'metrics.json' }}"
+
+          # Extract metrics using Python
+          python << 'EOF'
+          import json
+          import os
+
+          with open(os.environ.get('METRICS_FILE', 'metrics.json')) as f:
+              metrics = json.load(f)
+
+          # Handle different metrics formats
+          test_metrics = metrics.get('test', metrics.get('test_metrics', {}))
+          valid_metrics = metrics.get('valid', metrics.get('validation_metrics', {}))
+          train_metrics = metrics.get('train', metrics.get('train_metrics', {}))
+
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"rmse_test={test_metrics.get('rmse', 'N/A')}\n")
+              f.write(f"r2_test={test_metrics.get('r2', 'N/A')}\n")
+              f.write(f"mae_test={test_metrics.get('mae', 'N/A')}\n")
+              f.write(f"rmse_valid={valid_metrics.get('rmse', 'N/A')}\n")
+              f.write(f"r2_valid={valid_metrics.get('r2', 'N/A')}\n")
+              f.write(f"rmse_train={train_metrics.get('rmse', 'N/A')}\n")
+              f.write(f"r2_train={train_metrics.get('r2', 'N/A')}\n")
+          EOF
+        env:
+          METRICS_FILE: ${{ github.event.inputs.metrics_file || 'metrics.json' }}
+
+      - name: Validate model performance
+        id: validate
+        if: steps.check_file.outputs.exists == 'true'
+        run: |
+          echo "========================================="
+          echo "Model Validation Gate"
+          echo "========================================="
+          echo ""
+          echo "Thresholds:"
+          echo "  - Max RMSE (test): $MAX_RMSE_TEST"
+          echo "  - Min R² (test): $MIN_R2_TEST"
+          echo "  - Max RMSE (valid): $MAX_RMSE_VALID"
+          echo "  - Min R² (valid): $MIN_R2_VALID"
+          echo ""
+          echo "Current Metrics:"
+          echo "  - RMSE (test): ${{ steps.metrics.outputs.rmse_test }}"
+          echo "  - R² (test): ${{ steps.metrics.outputs.r2_test }}"
+          echo "  - RMSE (valid): ${{ steps.metrics.outputs.rmse_valid }}"
+          echo "  - R² (valid): ${{ steps.metrics.outputs.r2_valid }}"
+          echo ""
+
+          PASSED=true
+
+          # Validate test RMSE
+          if [ "${{ steps.metrics.outputs.rmse_test }}" != "N/A" ]; then
+            result=$(python -c "print('pass' if float('${{ steps.metrics.outputs.rmse_test }}') <= float('$MAX_RMSE_TEST') else 'fail')")
+            if [ "$result" = "fail" ]; then
+              echo "❌ FAIL: Test RMSE (${{ steps.metrics.outputs.rmse_test }}) exceeds threshold ($MAX_RMSE_TEST)"
+              PASSED=false
+            else
+              echo "✓ PASS: Test RMSE within threshold"
+            fi
+          fi
+
+          # Validate test R²
+          if [ "${{ steps.metrics.outputs.r2_test }}" != "N/A" ]; then
+            result=$(python -c "print('pass' if float('${{ steps.metrics.outputs.r2_test }}') >= float('$MIN_R2_TEST') else 'fail')")
+            if [ "$result" = "fail" ]; then
+              echo "❌ FAIL: Test R² (${{ steps.metrics.outputs.r2_test }}) below threshold ($MIN_R2_TEST)"
+              PASSED=false
+            else
+              echo "✓ PASS: Test R² within threshold"
+            fi
+          fi
+
+          # Validate validation RMSE
+          if [ "${{ steps.metrics.outputs.rmse_valid }}" != "N/A" ]; then
+            result=$(python -c "print('pass' if float('${{ steps.metrics.outputs.rmse_valid }}') <= float('$MAX_RMSE_VALID') else 'fail')")
+            if [ "$result" = "fail" ]; then
+              echo "❌ FAIL: Validation RMSE (${{ steps.metrics.outputs.rmse_valid }}) exceeds threshold ($MAX_RMSE_VALID)"
+              PASSED=false
+            else
+              echo "✓ PASS: Validation RMSE within threshold"
+            fi
+          fi
+
+          # Validate validation R²
+          if [ "${{ steps.metrics.outputs.r2_valid }}" != "N/A" ]; then
+            result=$(python -c "print('pass' if float('${{ steps.metrics.outputs.r2_valid }}') >= float('$MIN_R2_VALID') else 'fail')")
+            if [ "$result" = "fail" ]; then
+              echo "❌ FAIL: Validation R² (${{ steps.metrics.outputs.r2_valid }}) below threshold ($MIN_R2_VALID)"
+              PASSED=false
+            else
+              echo "✓ PASS: Validation R² within threshold"
+            fi
+          fi
+
+          echo ""
+          echo "========================================="
+          if [ "$PASSED" = "true" ]; then
+            echo "✓ MODEL VALIDATION PASSED"
+            echo "passed=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ MODEL VALIDATION FAILED"
+            echo "passed=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Skip validation (no metrics file)
+        if: steps.check_file.outputs.exists != 'true'
+        run: |
+          echo "⚠️ Skipping validation: No metrics file found"
+          echo "This may be expected if the model hasn't been trained yet"
+
+  check-model-drift:
+    runs-on: ubuntu-latest
+    needs: validate-metrics
+    if: needs.validate-metrics.outputs.validation_passed == 'true'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check for significant metric changes
+        run: |
+          echo "Checking for model drift compared to previous version..."
+
+          # Get previous metrics if available
+          if git show HEAD~1:metrics.json > /tmp/prev_metrics.json 2>/dev/null; then
+            echo "Previous metrics found, comparing..."
+
+            python << 'EOF'
+          import json
+
+          try:
+              with open('metrics.json') as f:
+                  current = json.load(f)
+              with open('/tmp/prev_metrics.json') as f:
+                  previous = json.load(f)
+
+              current_rmse = current.get('test', {}).get('rmse', 0)
+              previous_rmse = previous.get('test', {}).get('rmse', 0)
+
+              if previous_rmse > 0:
+                  change = ((current_rmse - previous_rmse) / previous_rmse) * 100
+                  print(f"RMSE change: {change:.2f}%")
+
+                  if change > 10:
+                      print("⚠️ Warning: RMSE increased by more than 10%")
+                  elif change < -10:
+                      print("✓ Model improved: RMSE decreased by more than 10%")
+                  else:
+                      print("✓ Model performance is stable")
+          except Exception as e:
+              print(f"Could not compare metrics: {e}")
+          EOF
+          else
+            echo "No previous metrics found, skipping drift check"
+          fi
+
+  create-summary:
+    runs-on: ubuntu-latest
+    needs: [validate-metrics, check-model-drift]
+    if: always()
+
+    steps:
+      - name: Create job summary
+        run: |
+          echo "## Model Validation Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value | Threshold | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| RMSE (test) | ${{ needs.validate-metrics.outputs.rmse_test }} | ≤ ${{ env.MAX_RMSE_TEST }} | ${{ needs.validate-metrics.outputs.validation_passed == 'true' && '✓' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| R² (test) | ${{ needs.validate-metrics.outputs.r2_test }} | ≥ ${{ env.MIN_R2_TEST }} | ${{ needs.validate-metrics.outputs.validation_passed == 'true' && '✓' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.validate-metrics.outputs.validation_passed }}" == "true" ]; then
+            echo "### ✓ Model is ready for deployment" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Model does not meet performance thresholds" >> $GITHUB_STEP_SUMMARY
+          fi

@@ -1,0 +1,241 @@
+name: DVC Pipeline
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - 'src/data/**'
+      - 'src/features/**'
+      - 'src/models/**'
+      - 'params.yaml'
+      - 'dvc.yaml'
+  pull_request:
+    branches: [master, main]
+    paths:
+      - 'src/data/**'
+      - 'src/features/**'
+      - 'src/models/**'
+      - 'params.yaml'
+      - 'dvc.yaml'
+  workflow_dispatch:
+    inputs:
+      force_repro:
+        description: 'Force full pipeline reproduction'
+        required: false
+        default: 'false'
+        type: boolean
+
+concurrency:
+  group: dvc-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+    outputs:
+      metrics_changed: ${{ steps.check_changes.outputs.changed }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Cache DVC data
+        uses: actions/cache@v4
+        with:
+          path: |
+            .dvc/cache
+            data/
+          key: dvc-${{ hashFiles('dvc.lock') }}
+          restore-keys: |
+            dvc-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install dvc[gdrive]
+
+      - name: Setup DVC
+        run: |
+          dvc version
+          dvc config core.analytics false
+
+      - name: Pull data from DVC remote
+        id: dvc_pull
+        run: |
+          echo "Pulling data from DVC remote..."
+          dvc pull --allow-missing 2>&1 | tee dvc_pull.log
+          if grep -q "Everything is up to date" dvc_pull.log; then
+            echo "status=up_to_date" >> $GITHUB_OUTPUT
+          else
+            echo "status=updated" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GDRIVE_CREDENTIALS_DATA: ${{ secrets.GDRIVE_CREDENTIALS_DATA }}
+
+      - name: Save previous metrics
+        run: |
+          if [ -f metrics.json ]; then
+            cp metrics.json metrics_prev.json
+          fi
+
+      - name: Run DVC pipeline
+        run: |
+          if [ "${{ github.event.inputs.force_repro }}" = "true" ]; then
+            echo "Forcing full reproduction..."
+            dvc repro --force
+          else
+            dvc repro
+          fi
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+
+      - name: Show pipeline status
+        run: |
+          echo "=== DVC Status ==="
+          dvc status
+          echo ""
+          echo "=== DVC Metrics ==="
+          dvc metrics show || echo "No metrics to show"
+
+      - name: Check for metric changes
+        id: check_changes
+        run: |
+          if [ -f metrics_prev.json ] && [ -f metrics.json ]; then
+            if ! diff -q metrics_prev.json metrics.json > /dev/null 2>&1; then
+              echo "changed=true" >> $GITHUB_OUTPUT
+              echo "Metrics have changed!"
+            else
+              echo "changed=false" >> $GITHUB_OUTPUT
+              echo "Metrics unchanged"
+            fi
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "New metrics generated"
+          fi
+
+      - name: Display metrics comparison
+        if: steps.check_changes.outputs.changed == 'true'
+        run: |
+          echo "=== Metrics Comparison ==="
+          if [ -f metrics_prev.json ]; then
+            echo "Previous:"
+            cat metrics_prev.json | python -m json.tool
+            echo ""
+          fi
+          echo "Current:"
+          cat metrics.json | python -m json.tool
+
+      - name: Upload metrics artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: metrics
+          path: |
+            metrics.json
+            metrics_prev.json
+          retention-days: 30
+
+      - name: Upload model artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: model
+          path: models/
+          retention-days: 30
+        if: always()
+
+  validate-data:
+    runs-on: ubuntu-latest
+    needs: run-pipeline
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Download processed data
+        uses: actions/download-artifact@v4
+        with:
+          name: model
+          path: models/
+        continue-on-error: true
+
+      - name: Run data validation
+        run: |
+          if [ -f "src/validation/data_validator.py" ]; then
+            python -c "
+          from src.validation.data_validator import DataValidator
+          import pandas as pd
+          import os
+
+          # Check if processed data exists
+          processed_path = 'data/processed'
+          if os.path.exists(processed_path):
+              for split in ['train', 'valid', 'test']:
+                  csv_path = f'{processed_path}/{split}.csv'
+                  if os.path.exists(csv_path):
+                      print(f'Validating {split} data...')
+                      df = pd.read_csv(csv_path)
+                      validator = DataValidator()
+                      report = validator.validate(df)
+                      if report.get('is_valid', True):
+                          print(f'  ✓ {split} data is valid')
+                      else:
+                          print(f'  ⚠ {split} data has issues:')
+                          for issue in report.get('issues', []):
+                              print(f'    - {issue}')
+          else:
+              print('No processed data found, skipping validation')
+          "
+          else
+            echo "Data validator not found, skipping validation"
+          fi
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        continue-on-error: true
+
+  create-summary:
+    runs-on: ubuntu-latest
+    needs: [run-pipeline, validate-data]
+    if: always()
+
+    steps:
+      - name: Download metrics
+        uses: actions/download-artifact@v4
+        with:
+          name: metrics
+          path: ./
+        continue-on-error: true
+
+      - name: Create job summary
+        run: |
+          echo "## DVC Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Trigger:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f metrics.json ]; then
+            echo "### Model Metrics" >> $GITHUB_STEP_SUMMARY
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            cat metrics.json | python -m json.tool >> $GITHUB_STEP_SUMMARY 2>/dev/null || cat metrics.json >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ No metrics file found" >> $GITHUB_STEP_SUMMARY
+          fi
