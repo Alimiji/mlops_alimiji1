@@ -1,0 +1,65 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info
+.eggs
+*.egg
+.pytest_cache
+.coverage
+htmlcov
+.tox
+.nox
+.mypy_cache
+.ruff_cache
+
+# Virtual environments
+venv
+env
+.venv
+.env
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# DVC
+.dvc/cache
+.dvc/tmp
+
+# Data (handled separately)
+data/raw
+data/interim
+data/features
+
+# Notebooks
+notebooks
+*.ipynb
+
+# MLflow runs (use mounted volumes instead)
+mlruns
+
+# Documentation
+docs
+*.md
+!README.md
+
+# Tests
+tests
+
+# CI/CD
+.github
+
+# Misc
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
