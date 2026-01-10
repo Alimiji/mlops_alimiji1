@@ -57,6 +57,7 @@ RFR_FEATURES = [
 # 3. Fonctions utilitaires
 # ============================
 
+
 def load_splits():
     """Charge les splits train/valid/test au format parquet."""
     if not TRAIN_PATH.exists() or not VALID_PATH.exists() or not TEST_PATH.exists():
@@ -171,6 +172,7 @@ def build_features_for_model(model_name, feature_list, train_df, valid_df, test_
 # 4. Point d'entrée principal
 # ============================
 
+
 def main():
     print("============== BUILD FEATURES ==============")
 
@@ -182,7 +184,6 @@ def main():
 
     # Création du dossier racine des features
     os.makedirs(FEATURES_DIR, exist_ok=True)
-
 
     """
 

@@ -11,9 +11,16 @@ class TestDataCleaning:
     def test_sample_data_has_required_columns(self, sample_weather_data):
         """Test that sample data has all required columns."""
         required_columns = [
-            "date", "min_temp", "max_temp", "mean_temp",
-            "sunshine", "global_radiation", "precipitation",
-            "pressure", "cloud_cover", "snow_depth"
+            "date",
+            "min_temp",
+            "max_temp",
+            "mean_temp",
+            "sunshine",
+            "global_radiation",
+            "precipitation",
+            "pressure",
+            "cloud_cover",
+            "snow_depth",
         ]
         for col in required_columns:
             assert col in sample_weather_data.columns

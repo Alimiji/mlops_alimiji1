@@ -2,22 +2,22 @@
 
 import json
 import logging
-from pathlib import Path
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Optional
 
-import numpy as np
 import joblib
+import numpy as np
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from .schemas import (
-    WeatherFeatures,
-    PredictionResponse,
     BatchPredictionRequest,
     BatchPredictionResponse,
     HealthResponse,
     ModelMetrics,
+    PredictionResponse,
+    WeatherFeatures,
 )
 
 # Configure logging
@@ -157,10 +157,7 @@ async def predict_batch(request: BatchPredictionRequest):
         raise HTTPException(status_code=503, detail="Model not loaded")
 
     # Convert all instances to numpy array
-    X = np.array([
-        [getattr(instance, name) for name in FEATURE_ORDER]
-        for instance in request.instances
-    ])
+    X = np.array([[getattr(instance, name) for name in FEATURE_ORDER] for instance in request.instances])
 
     # Make predictions
     predictions = model.predict(X)
@@ -220,4 +217,5 @@ async def reload_model():
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

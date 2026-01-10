@@ -1,6 +1,7 @@
 """Pydantic schemas for API request/response validation."""
 
 from typing import List, Optional
+
 from pydantic import BaseModel, Field
 
 
@@ -26,7 +27,7 @@ class WeatherFeatures(BaseModel):
                 "cloud_cover": 6.0,
                 "precipitation": 0.5,
                 "pressure": 101325.0,
-                "snow_depth": 0.0
+                "snow_depth": 0.0,
             }
         }
 
@@ -38,12 +39,7 @@ class PredictionResponse(BaseModel):
     model_version: str = Field(..., description="Model version/run ID")
 
     class Config:
-        json_schema_extra = {
-            "example": {
-                "predicted_mean_temp": 9.5,
-                "model_version": "random_forest_v1"
-            }
-        }
+        json_schema_extra = {"example": {"predicted_mean_temp": 9.5, "model_version": "random_forest_v1"}}
 
 
 class BatchPredictionRequest(BaseModel):

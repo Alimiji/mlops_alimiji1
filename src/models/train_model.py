@@ -3,20 +3,19 @@
 # + Sauvegarde locale MLOps
 # =========================
 
-from pathlib import Path
 import json
-import numpy as np
-import yaml
-import joblib
+from pathlib import Path
 
+import joblib
 import mlflow
 import mlflow.sklearn
-
-from sklearn.pipeline import Pipeline
+import numpy as np
+import yaml
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.pipeline import Pipeline
 
 # Définir la racine du projet de manière robuste
-ROOT = Path(__file__).resolve().parent.parent.parent   # src/models → src → projet racine
+ROOT = Path(__file__).resolve().parent.parent.parent  # src/models → src → projet racine
 
 # Charger params.yaml depuis la racine
 params_path = ROOT / "params.yaml"
@@ -40,9 +39,7 @@ mlflow.set_experiment("weather_mean_temp_models")
 rf_params = params["random_forest"]
 
 # Pipeline RandomForest
-rf_pipeline = Pipeline(steps=[
-    ("rf", RandomForestRegressor(**rf_params))
-])
+rf_pipeline = Pipeline(steps=[("rf", RandomForestRegressor(**rf_params))])
 
 # =========================
 # Entraînement + Sauvegarde locale

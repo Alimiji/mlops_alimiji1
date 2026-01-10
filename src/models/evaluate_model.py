@@ -6,15 +6,14 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
-from typing import Dict, Tuple, Optional
+from typing import Dict, Optional, Tuple
 
-import numpy as np
 import joblib
 import mlflow
 import mlflow.sklearn
-
+import numpy as np
 from sklearn.base import BaseEstimator
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 SplitData = Tuple[np.ndarray, np.ndarray]
 
@@ -84,61 +83,57 @@ def try_read_train_run_id(model_info_path: Path) -> Optional[str]:
 # Main
 # -----------------------------
 def main():
-    parser = argparse.ArgumentParser(
-        description="Évaluer un modèle et enregistrer métriques/artefacts dans MLflow."
-    )
+    parser = argparse.ArgumentParser(description="Évaluer un modèle et enregistrer métriques/artefacts dans MLflow.")
 
     parser.add_argument(
-        "--features-dir", type=Path, default=Path("data/features/random_forest"),
-        help="Dossier contenant X_*.npy et y_*.npy (ex: data/features/random_forest)"
+        "--features-dir",
+        type=Path,
+        default=Path("data/features/random_forest"),
+        help="Dossier contenant X_*.npy et y_*.npy (ex: data/features/random_forest)",
     )
     parser.add_argument(
-        "--experiment-name", type=str, default="weather_mean_temp_models",
-        help="Nom de l'expérience MLflow"
+        "--experiment-name", type=str, default="weather_mean_temp_models", help="Nom de l'expérience MLflow"
     )
     parser.add_argument(
-        "--run-name", type=str, default="RandomForest_evaluate",
-        help="Nom du run MLflow pour l'évaluation"
+        "--run-name", type=str, default="RandomForest_evaluate", help="Nom du run MLflow pour l'évaluation"
     )
 
     # Modèle : local ou MLflow
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument(
-        "--model-path", type=Path,
-        help="Chemin local du modèle (ex: models/random_forest/Production/model.pkl)"
+        "--model-path", type=Path, help="Chemin local du modèle (ex: models/random_forest/Production/model.pkl)"
     )
     group.add_argument(
-        "--model-uri", type=str,
-        help="URI MLflow du modèle (ex: runs:/<run_id>/model ou models:/Nom/Production)"
+        "--model-uri", type=str, help="URI MLflow du modèle (ex: runs:/<run_id>/model ou models:/Nom/Production)"
     )
 
     # Sorties / artefacts
     parser.add_argument(
-        "--metrics-path", type=Path, default=Path("metrics.json"),
-        help="Fichier JSON des métriques (utile pour DVC)."
+        "--metrics-path", type=Path, default=Path("metrics.json"), help="Fichier JSON des métriques (utile pour DVC)."
     )
 
     # Option : log modèle dans ce run d'éval (souvent inutile si train autolog)
     parser.add_argument(
-        "--log-model", action="store_true",
-        help="Si activé, loggue aussi le modèle dans CE run d'évaluation (sinon métriques seulement)."
+        "--log-model",
+        action="store_true",
+        help="Si activé, loggue aussi le modèle dans CE run d'évaluation (sinon métriques seulement).",
     )
 
     # Option : copie locale du modèle évalué (rarement nécessaire, mais possible)
     parser.add_argument(
-        "--save-local", action="store_true",
-        help="Si activé, sauvegarde aussi une copie locale du modèle évalué via joblib."
+        "--save-local",
+        action="store_true",
+        help="Si activé, sauvegarde aussi une copie locale du modèle évalué via joblib.",
     )
     parser.add_argument(
-        "--save-local-dir", type=Path, default=Path("models/random_forest/Production"),
-        help="Dossier local pour la copie du modèle évalué."
+        "--save-local-dir",
+        type=Path,
+        default=Path("models/random_forest/Production"),
+        help="Dossier local pour la copie du modèle évalué.",
     )
 
     # Option : relier explicitement à un run d'entraînement
-    parser.add_argument(
-        "--train-run-id", type=str, default=None,
-        help="Run ID du training correspondant (optionnel)."
-    )
+    parser.add_argument("--train-run-id", type=str, default=None, help="Run ID du training correspondant (optionnel).")
 
     args = parser.parse_args()
 

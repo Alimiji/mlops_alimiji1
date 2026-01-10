@@ -13,7 +13,7 @@ This guarantees that the whole team — and you in six months — will always ge
 same training-ready data, with zero manual steps and zero risk of discrepancy.
 """
 
-#import pandas as pd
+# import pandas as pd
 from pathlib import Path
 
 # Chemin propre et reproductible quel que soit l’OS
@@ -22,7 +22,6 @@ from pathlib import Path
 # src/data/make_dataset.py
 import click
 import pandas as pd
-from pathlib import Path
 
 # Chemins robustes
 ROOT = Path(__file__).parent.parent.parent.resolve()
@@ -47,8 +46,17 @@ def load_and_clean() -> pd.DataFrame:
     nb_before = len(df)
     df = df.drop_duplicates()
 
-    weather_cols = ["max_temp", "mean_temp", "min_temp", "sunshine",
-                    "global_radiation", "precipitation", "pressure", "cloud_cover", "snow_depth"]
+    weather_cols = [
+        "max_temp",
+        "mean_temp",
+        "min_temp",
+        "sunshine",
+        "global_radiation",
+        "precipitation",
+        "pressure",
+        "cloud_cover",
+        "snow_depth",
+    ]
     weather_cols = [c for c in weather_cols if c in df.columns]
     df = df.dropna(subset=weather_cols, how="all")
 
@@ -60,9 +68,9 @@ def chronological_split(df: pd.DataFrame):
     df = df.sort_values("date").reset_index(drop=True)
     max_year = df["date"].dt.year.max()
 
-    test  = df[df["date"].dt.year >= max_year - 1]      # 2019-2020
+    test = df[df["date"].dt.year >= max_year - 1]  # 2019-2020
     valid = df[df["date"].dt.year.between(max_year - 3, max_year - 2)]  # 2017-2018
-    train = df[df["date"].dt.year < max_year - 3]       # 1979-2016
+    train = df[df["date"].dt.year < max_year - 3]  # 1979-2016
 
     print("\nSplit chronologique :")
     print(f"Train  : {train['date'].dt.year.min()} – {train['date'].dt.year.max()}   → {len(train):,} lignes")
@@ -80,24 +88,20 @@ def main(interim: bool):
     # Mode interim uniquement
     # if interim:
     out_path = INTERIM_DIR / "london_weather_clean.parquet"
-    #out_path2 = INTERIM_DIR / "london_weather_clean.csv"
+    # out_path2 = INTERIM_DIR / "london_weather_clean.csv"
     df.to_parquet(out_path, index=False)
-    #df.to_csv(out_path2, index=False)
+    # df.to_csv(out_path2, index=False)
     print(f"\nVersion intermédiaire sauvegardée ici en parquet → {out_path}")
-    #print(f"\nVersion intermédiaire sauvegardée ici en csv → {out_path2}")
-    #return
+    # print(f"\nVersion intermédiaire sauvegardée ici en csv → {out_path2}")
+    # return
 
     # Mode complet = split + processed (comportement par défaut)
     train, valid, test = chronological_split(df)
 
     for name, dataset in [("train", train), ("valid", valid), ("test", test)]:
-        dataset.drop(columns=["date"], errors="ignore").to_parquet(
-            PROCESSED_DIR / f"{name}.parquet", index=False
-        )
+        dataset.drop(columns=["date"], errors="ignore").to_parquet(PROCESSED_DIR / f"{name}.parquet", index=False)
 
-        dataset.drop(columns=["date"], errors="ignore").to_csv(
-            PROCESSED_DIR / f"{name}.csv", index=False
-        )
+        dataset.drop(columns=["date"], errors="ignore").to_csv(PROCESSED_DIR / f"{name}.csv", index=False)
 
     print("\nDatasets finaux prêts pour l'entrainement (format parquet) dans data/processed/")
     print("├── train.parquet")

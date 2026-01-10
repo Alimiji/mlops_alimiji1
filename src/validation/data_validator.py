@@ -2,8 +2,9 @@
 
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
-import pandas as pd
+
 import numpy as np
+import pandas as pd
 
 
 @dataclass
@@ -21,11 +22,19 @@ class DataValidator:
     """Validator for weather dataset quality checks."""
 
     # Expected columns in the dataset
-    required_columns: List[str] = field(default_factory=lambda: [
-        "min_temp", "max_temp", "mean_temp", "sunshine",
-        "global_radiation", "precipitation", "pressure",
-        "cloud_cover", "snow_depth"
-    ])
+    required_columns: List[str] = field(
+        default_factory=lambda: [
+            "min_temp",
+            "max_temp",
+            "mean_temp",
+            "sunshine",
+            "global_radiation",
+            "precipitation",
+            "pressure",
+            "cloud_cover",
+            "snow_depth",
+        ]
+    )
 
     # Value constraints
     constraints: Dict[str, Tuple[Optional[float], Optional[float]]] = field(
@@ -54,35 +63,34 @@ class DataValidator:
                 is_valid=False,
                 check_name="schema_validation",
                 message=f"Missing required columns: {missing_cols}",
-                details={"missing_columns": missing_cols}
+                details={"missing_columns": missing_cols},
             )
 
         return ValidationResult(
             is_valid=True,
             check_name="schema_validation",
             message="All required columns present",
-            details={"columns": list(df.columns)}
+            details={"columns": list(df.columns)},
         )
 
     def validate_missing_values(self, df: pd.DataFrame) -> ValidationResult:
         """Check for excessive missing values."""
         missing_pct = (df[self.required_columns].isnull().sum() / len(df) * 100).to_dict()
-        excessive_missing = {col: pct for col, pct in missing_pct.items()
-                           if pct > self.max_missing_pct}
+        excessive_missing = {col: pct for col, pct in missing_pct.items() if pct > self.max_missing_pct}
 
         if excessive_missing:
             return ValidationResult(
                 is_valid=False,
                 check_name="missing_values",
                 message=f"Columns with excessive missing values (>{self.max_missing_pct}%): {list(excessive_missing.keys())}",
-                details={"missing_percentages": missing_pct, "threshold": self.max_missing_pct}
+                details={"missing_percentages": missing_pct, "threshold": self.max_missing_pct},
             )
 
         return ValidationResult(
             is_valid=True,
             check_name="missing_values",
             message="Missing values within acceptable limits",
-            details={"missing_percentages": missing_pct}
+            details={"missing_percentages": missing_pct},
         )
 
     def validate_value_ranges(self, df: pd.DataFrame) -> ValidationResult:
@@ -100,7 +108,7 @@ class DataValidator:
                     "issue": "below_minimum",
                     "min_expected": min_val,
                     "actual_min": col_data.min(),
-                    "count": (col_data < min_val).sum()
+                    "count": (col_data < min_val).sum(),
                 }
 
             if max_val is not None and col_data.max() > max_val:
@@ -108,7 +116,7 @@ class DataValidator:
                     "issue": "above_maximum",
                     "max_expected": max_val,
                     "actual_max": col_data.max(),
-                    "count": (col_data > max_val).sum()
+                    "count": (col_data > max_val).sum(),
                 }
 
         if violations:
@@ -116,14 +124,14 @@ class DataValidator:
                 is_valid=False,
                 check_name="value_ranges",
                 message=f"Value range violations in columns: {list(violations.keys())}",
-                details={"violations": violations}
+                details={"violations": violations},
             )
 
         return ValidationResult(
             is_valid=True,
             check_name="value_ranges",
             message="All values within expected ranges",
-            details={"constraints": self.constraints}
+            details={"constraints": self.constraints},
         )
 
     def validate_temperature_consistency(self, df: pd.DataFrame) -> ValidationResult:
@@ -132,13 +140,11 @@ class DataValidator:
             return ValidationResult(
                 is_valid=True,
                 check_name="temperature_consistency",
-                message="Temperature columns not all present, skipping check"
+                message="Temperature columns not all present, skipping check",
             )
 
         inconsistent = df[
-            (df["min_temp"] > df["mean_temp"]) |
-            (df["mean_temp"] > df["max_temp"]) |
-            (df["min_temp"] > df["max_temp"])
+            (df["min_temp"] > df["mean_temp"]) | (df["mean_temp"] > df["max_temp"]) | (df["min_temp"] > df["max_temp"])
         ]
 
         if len(inconsistent) > 0:
@@ -148,14 +154,12 @@ class DataValidator:
                 message=f"Found {len(inconsistent)} rows with inconsistent temperature values",
                 details={
                     "inconsistent_count": len(inconsistent),
-                    "inconsistent_percentage": len(inconsistent) / len(df) * 100
-                }
+                    "inconsistent_percentage": len(inconsistent) / len(df) * 100,
+                },
             )
 
         return ValidationResult(
-            is_valid=True,
-            check_name="temperature_consistency",
-            message="Temperature values are logically consistent"
+            is_valid=True, check_name="temperature_consistency", message="Temperature values are logically consistent"
         )
 
     def validate_duplicates(self, df: pd.DataFrame, subset: Optional[List[str]] = None) -> ValidationResult:
@@ -167,20 +171,13 @@ class DataValidator:
                 is_valid=False,
                 check_name="duplicates",
                 message=f"Found {duplicates} duplicate rows",
-                details={"duplicate_count": duplicates, "subset": subset}
+                details={"duplicate_count": duplicates, "subset": subset},
             )
 
-        return ValidationResult(
-            is_valid=True,
-            check_name="duplicates",
-            message="No duplicate rows found"
-        )
+        return ValidationResult(is_valid=True, check_name="duplicates", message="No duplicate rows found")
 
     def validate_data_drift(
-        self,
-        reference_df: pd.DataFrame,
-        current_df: pd.DataFrame,
-        threshold: float = 0.1
+        self, reference_df: pd.DataFrame, current_df: pd.DataFrame, threshold: float = 0.1
     ) -> ValidationResult:
         """Check for data drift between reference and current datasets."""
         drift_detected = {}
@@ -201,7 +198,7 @@ class DataValidator:
                 drift_detected[col] = {
                     "reference_mean": ref_mean,
                     "current_mean": curr_mean,
-                    "relative_difference": relative_diff
+                    "relative_difference": relative_diff,
                 }
 
         if drift_detected:
@@ -209,14 +206,14 @@ class DataValidator:
                 is_valid=False,
                 check_name="data_drift",
                 message=f"Data drift detected in columns: {list(drift_detected.keys())}",
-                details={"drift": drift_detected, "threshold": threshold}
+                details={"drift": drift_detected, "threshold": threshold},
             )
 
         return ValidationResult(
             is_valid=True,
             check_name="data_drift",
             message="No significant data drift detected",
-            details={"threshold": threshold}
+            details={"threshold": threshold},
         )
 
     def validate_all(self, df: pd.DataFrame) -> List[ValidationResult]:
@@ -240,14 +237,9 @@ class DataValidator:
             "passed_checks": sum(1 for r in results if r.is_valid),
             "failed_checks": sum(1 for r in results if not r.is_valid),
             "results": [
-                {
-                    "check": r.check_name,
-                    "is_valid": r.is_valid,
-                    "message": r.message,
-                    "details": r.details
-                }
+                {"check": r.check_name, "is_valid": r.is_valid, "message": r.message, "details": r.details}
                 for r in results
-            ]
+            ],
         }
 
 
