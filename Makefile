@@ -1,4 +1,4 @@
-.PHONY: install test lint format clean run-api docker-build docker-up docker-down pipeline mlflow
+.PHONY: install test lint format clean run-api docker-build docker-up docker-down pipeline mlflow streamlit streamlit-install
 
 # Python environment
 PYTHON := python
@@ -76,6 +76,19 @@ dvc-push:
 mlflow:
 	mlflow ui --backend-store-uri sqlite:///mlflow.db --port 5000
 
+# Streamlit UI
+streamlit-install:
+	$(PIP) install -r streamlit_app/requirements.txt
+
+streamlit:
+	cd streamlit_app && streamlit run app.py --server.port 8501
+
+docker-up-ui:
+	docker-compose up -d api streamlit
+
+docker-up-all:
+	docker-compose up -d api streamlit && docker-compose --profile full --profile monitoring up -d
+
 # Data pipeline steps
 make-dataset:
 	$(PYTHON) src/data/make_dataset.py
@@ -104,19 +117,36 @@ clean:
 # Help
 help:
 	@echo "Available commands:"
-	@echo "  install          - Install production dependencies"
-	@echo "  install-dev      - Install development dependencies"
-	@echo "  test             - Run tests"
-	@echo "  test-cov         - Run tests with coverage report"
-	@echo "  lint             - Run linter"
-	@echo "  format           - Format code with black and isort"
-	@echo "  run-api          - Run API server locally"
-	@echo "  docker-build     - Build Docker image"
-	@echo "  docker-up        - Start API container"
-	@echo "  docker-down      - Stop containers"
-	@echo "  pipeline         - Run DVC pipeline"
-	@echo "  mlflow           - Start MLflow UI"
-	@echo "  train            - Train model"
-	@echo "  evaluate         - Evaluate model"
-	@echo "  validate         - Validate data"
-	@echo "  clean            - Clean temporary files"
+	@echo ""
+	@echo "  Installation:"
+	@echo "    install          - Install production dependencies"
+	@echo "    install-dev      - Install development dependencies"
+	@echo "    streamlit-install - Install Streamlit UI dependencies"
+	@echo ""
+	@echo "  Testing & Quality:"
+	@echo "    test             - Run tests"
+	@echo "    test-cov         - Run tests with coverage report"
+	@echo "    lint             - Run linter"
+	@echo "    format           - Format code with black and isort"
+	@echo ""
+	@echo "  Local Development:"
+	@echo "    run-api          - Run API server locally (port 8000)"
+	@echo "    streamlit        - Run Streamlit UI locally (port 8501)"
+	@echo "    mlflow           - Start MLflow UI (port 5000)"
+	@echo ""
+	@echo "  Docker:"
+	@echo "    docker-build     - Build Docker images"
+	@echo "    docker-up        - Start API container only"
+	@echo "    docker-up-ui     - Start API + Streamlit UI"
+	@echo "    docker-up-all    - Start all services (API, UI, MLflow, monitoring)"
+	@echo "    docker-down      - Stop all containers"
+	@echo "    docker-logs      - View container logs"
+	@echo ""
+	@echo "  ML Pipeline:"
+	@echo "    pipeline         - Run DVC pipeline"
+	@echo "    train            - Train model"
+	@echo "    evaluate         - Evaluate model"
+	@echo "    validate         - Validate data"
+	@echo ""
+	@echo "  Maintenance:"
+	@echo "    clean            - Clean temporary files"

@@ -28,5 +28,5 @@ src/models/mlruns
 mlflow.db
 models/random_forest/Production/model.pkl
 
-
-
+# Streamlit secrets (never commit)
+streamlit_app/.streamlit/secrets.toml

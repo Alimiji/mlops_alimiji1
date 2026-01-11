@@ -1,0 +1,145 @@
+name: Streamlit UI CI/CD
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - 'streamlit_app/**'
+      - '.github/workflows/streamlit.yml'
+  pull_request:
+    branches: [master, main]
+    paths:
+      - 'streamlit_app/**'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint Streamlit App
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install linting tools
+        run: pip install black isort flake8
+
+      - name: Check formatting with Black
+        run: black --check streamlit_app/
+
+      - name: Check imports with isort
+        run: isort --check-only --profile black streamlit_app/
+
+      - name: Lint with flake8
+        run: flake8 streamlit_app/ --max-line-length=120 --ignore=E501,W503
+
+  test:
+    name: Test Streamlit App
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -r streamlit_app/requirements.txt
+          pip install pytest
+
+      - name: Test imports
+        run: |
+          cd streamlit_app
+          python -c "from utils.api_client import WeatherAPIClient; print('API client OK')"
+          python -c "from utils.config import APP_CONFIG; print('Config OK')"
+          python -c "from components.charts import create_metrics_chart; print('Charts OK')"
+
+      - name: Validate Streamlit config
+        run: |
+          if [ -f streamlit_app/.streamlit/config.toml ]; then
+            echo "Streamlit config found"
+            cat streamlit_app/.streamlit/config.toml
+          fi
+
+  build-docker:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Streamlit image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./streamlit_app
+          file: ./streamlit_app/Dockerfile
+          push: false
+          tags: weather-streamlit-ui:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Test container starts
+        run: |
+          docker run -d --name streamlit-test -p 8501:8501 weather-streamlit-ui:test
+          sleep 10
+
+          # Check if container is running
+          if docker ps | grep streamlit-test; then
+            echo "Container is running"
+          else
+            echo "Container failed to start"
+            docker logs streamlit-test
+            exit 1
+          fi
+
+          docker stop streamlit-test
+          docker rm streamlit-test
+
+  deploy-info:
+    name: Deployment Information
+    runs-on: ubuntu-latest
+    needs: build-docker
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate deployment summary
+        run: |
+          echo "## Streamlit UI Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Docker Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "# Build and run with docker-compose" >> $GITHUB_STEP_SUMMARY
+          echo "docker-compose up -d api streamlit" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# Access the UI" >> $GITHUB_STEP_SUMMARY
+          echo "# http://localhost:8501" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Streamlit Cloud Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "1. Go to [Streamlit Cloud](https://share.streamlit.io/)" >> $GITHUB_STEP_SUMMARY
+          echo "2. Connect this repository" >> $GITHUB_STEP_SUMMARY
+          echo "3. Set main file path: \`streamlit_app/app.py\`" >> $GITHUB_STEP_SUMMARY
+          echo "4. Add secret \`API_URL\` with your deployed API URL" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Required Secrets for Streamlit Cloud" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`toml" >> $GITHUB_STEP_SUMMARY
+          echo "# .streamlit/secrets.toml" >> $GITHUB_STEP_SUMMARY
+          echo 'API_URL = "https://your-api-url.com"' >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
