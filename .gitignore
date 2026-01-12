@@ -19,6 +19,9 @@ data/**
 !data/**/*.dvc
 !data/**/*.yaml
 
+# Track raw data (small files)
+!data/raw/london_weather.csv
+
 src/models/mlflow.db
 src/models/mlruns
 !src/models/train_model.py
