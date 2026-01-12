@@ -46,11 +46,11 @@ stages:
     outs:
     - path: models/random_forest/Production/model.pkl
       hash: md5
-      md5: 0a048611804078005b8272eb26b4d779
+      md5: 44bebd223b998cf7e177aed1e73de3a6
       size: 343246654
     - path: models/random_forest/Production/model_info.json
       hash: md5
-      md5: dba6a260942616d995bfab2977e525c0
+      md5: 006851e7426c173879e57b2b91201121
       size: 527
   evaluate:
     cmd: python src/models/evaluate_model.py --model-path 
@@ -74,10 +74,10 @@ stages:
       size: 5968
     - path: models/random_forest/Production/model.pkl
       hash: md5
-      md5: 0a048611804078005b8272eb26b4d779
+      md5: 44bebd223b998cf7e177aed1e73de3a6
       size: 343246654
     outs:
     - path: metrics.json
       hash: md5
-      md5: 7055d01ce02d13b42c20506e1c116f2f
-      size: 327
+      md5: 61f04edb6fea10a29c5ced248ad0a88e
+      size: 326
