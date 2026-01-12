@@ -72,7 +72,7 @@ jobs:
         id: dvc_pull
         run: |
           echo "Pulling data from DVC remote..."
-          dvc pull --allow-missing 2>&1 | tee dvc_pull.log
+          dvc pull 2>&1 | tee dvc_pull.log || true
           if grep -q "Everything is up to date" dvc_pull.log; then
             echo "status=up_to_date" >> $GITHUB_OUTPUT
           else
@@ -80,6 +80,37 @@ jobs:
           fi
         env:
           GDRIVE_CREDENTIALS_DATA: ${{ secrets.GDRIVE_CREDENTIALS_DATA }}
+
+      - name: Verify critical data files
+        run: |
+          echo "Checking for required data files..."
+          MISSING_FILES=0
+
+          # Check raw data
+          if [ ! -f "data/raw/london_weather.csv" ]; then
+            echo "❌ Missing: data/raw/london_weather.csv"
+            MISSING_FILES=1
+          else
+            echo "✅ Found: data/raw/london_weather.csv"
+          fi
+
+          # If raw data missing, fail with clear message
+          if [ $MISSING_FILES -eq 1 ]; then
+            echo ""
+            echo "=========================================="
+            echo "❌ ERROR: Required data files are missing!"
+            echo "=========================================="
+            echo ""
+            echo "This usually means:"
+            echo "1. DVC data was never pushed to the remote (run 'dvc push' locally)"
+            echo "2. GDRIVE_CREDENTIALS_DATA secret is not configured correctly"
+            echo "3. The DVC remote is not accessible"
+            echo ""
+            echo "To fix locally, run:"
+            echo "  dvc push"
+            echo ""
+            exit 1
+          fi
 
       - name: Save previous metrics
         run: |
