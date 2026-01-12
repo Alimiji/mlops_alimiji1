@@ -66,20 +66,25 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip install dvc
 
       - name: Setup MLflow tracking
         run: |
           echo "MLFLOW_TRACKING_URI=./mlruns" >> $GITHUB_ENV
           echo "MLFLOW_EXPERIMENT_NAME=${{ env.EXPERIMENT_NAME }}" >> $GITHUB_ENV
 
-      - name: Pull DVC data (if available)
+      - name: Setup DVC with DagsHub
         run: |
-          if [ -f "dvc.lock" ]; then
-            dvc pull --allow-missing || echo "Could not pull DVC data, using cached"
-          fi
+          dvc remote modify dagshub --local password ${{ secrets.DAGSHUB_TOKEN }}
+
+      - name: Pull data and run pipeline
+        run: |
+          echo "Pulling data from DagsHub..."
+          dvc pull
+          echo "Running DVC pipeline..."
+          dvc repro
         env:
-          GDRIVE_CREDENTIALS_DATA: ${{ secrets.GDRIVE_CREDENTIALS_DATA }}
-        continue-on-error: true
+          PYTHONPATH: ${{ github.workspace }}
 
       - name: Run training
         id: train
