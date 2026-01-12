@@ -114,7 +114,7 @@ def main(interim: bool):
     print("├── train.csv")
     print("├── valid.csv")
     print("└── test.csv")
-    
+
     """
 
 

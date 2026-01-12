@@ -204,9 +204,9 @@ def main():
         valid_df=valid_df,
         test_df=test_df,
     )
-    
+
     On se limitera seulement au modèle Random Forest car c'est le modèle ayant le meilleur score
-    
+
     """
 
     # 3) Features pour Random Forest

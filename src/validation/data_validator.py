@@ -3,7 +3,6 @@
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
-import numpy as np
 import pandas as pd
 
 
@@ -79,10 +78,11 @@ class DataValidator:
         excessive_missing = {col: pct for col, pct in missing_pct.items() if pct > self.max_missing_pct}
 
         if excessive_missing:
+            cols = list(excessive_missing.keys())
             return ValidationResult(
                 is_valid=False,
                 check_name="missing_values",
-                message=f"Columns with excessive missing values (>{self.max_missing_pct}%): {list(excessive_missing.keys())}",
+                message=f"Columns with excessive missing values (>{self.max_missing_pct}%): {cols}",
                 details={"missing_percentages": missing_pct, "threshold": self.max_missing_pct},
             )
 

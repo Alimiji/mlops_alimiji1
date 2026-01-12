@@ -4,7 +4,6 @@ import json
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Optional
 
 import joblib
 import numpy as np
