@@ -1,6 +1,6 @@
 [core]
-    remote = gdrive_remote
-['remote "gdrive_remote"']
-    url = gdrive://1BodexMA_rMcHzJg3L7f2tM_lMGoDvSm4
-    gdrive_use_service_account = true
-    gdrive_service_account_json_file_path = ../../dvc_mlops.json
+    remote = dagshub
+['remote "dagshub"']
+    url = https://dagshub.com/Alimiji/mlops_alimiji1.dvc
+    auth = basic
+    user = Alimiji

@@ -61,20 +61,16 @@ jobs:
           pip install -r requirements.txt
           pip install dvc
 
-      - name: Setup DVC
+      - name: Setup DVC with DagsHub
         run: |
           dvc version
           dvc config core.analytics false
+          dvc remote modify dagshub --local password ${{ secrets.DAGSHUB_TOKEN }}
 
-      - name: Verify raw data
+      - name: Pull data from DagsHub
         run: |
-          echo "Checking for raw data file..."
-          if [ -f "data/raw/london_weather.csv" ]; then
-            echo "✅ Found: data/raw/london_weather.csv"
-          else
-            echo "❌ Missing: data/raw/london_weather.csv"
-            exit 1
-          fi
+          echo "Pulling data from DagsHub..."
+          dvc pull
 
       - name: Save previous metrics
         run: |
@@ -84,8 +80,8 @@ jobs:
 
       - name: Run DVC pipeline
         run: |
-          echo "Running full DVC pipeline..."
-          dvc repro --force
+          echo "Running DVC pipeline..."
+          dvc repro
         env:
           PYTHONPATH: ${{ github.workspace }}
 
