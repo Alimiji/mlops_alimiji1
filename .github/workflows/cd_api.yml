@@ -118,8 +118,10 @@ jobs:
 
       - name: Pull and test image
         run: |
-          docker pull ${{ env.REGISTRY }}/${{ needs.build-and-push.outputs.image_name }}:${{ github.sha }}
-          docker run -d --name test-api -p 8000:8000 ${{ env.REGISTRY }}/${{ needs.build-and-push.outputs.image_name }}:${{ github.sha }}
+          IMAGE="${{ env.REGISTRY }}/${{ needs.build-and-push.outputs.image_name }}:latest"
+          echo "Pulling image: $IMAGE"
+          docker pull "$IMAGE"
+          docker run -d --name test-api -p 8000:8000 "$IMAGE"
           sleep 10
 
       - name: Health check
@@ -157,14 +159,14 @@ jobs:
           echo "Deployment Summary"
           echo "========================================="
           echo "Environment: ${{ github.event.inputs.environment || 'staging' }}"
-          echo "Image: ${{ env.REGISTRY }}/${{ needs.build-and-push.outputs.image_name }}:${{ github.sha }}"
+          echo "Image: ${{ env.REGISTRY }}/${{ needs.build-and-push.outputs.image_name }}:latest"
           echo "Digest: ${{ needs.build-and-push.outputs.image_digest }}"
           echo "Triggered by: ${{ github.actor }}"
           echo "Commit: ${{ github.sha }}"
           echo "========================================="
           echo ""
           echo "To deploy manually, run:"
-          echo "docker pull ${{ env.REGISTRY }}/${{ needs.build-and-push.outputs.image_name }}:${{ github.sha }}"
+          echo "docker pull ${{ env.REGISTRY }}/${{ needs.build-and-push.outputs.image_name }}:latest"
           echo "docker-compose up -d api"
 
       # ============================================
