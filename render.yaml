@@ -1,12 +1,35 @@
 services:
+  # ============================================
+  # Weather Prediction API (FastAPI)
+  # ============================================
   - type: web
     name: weather-prediction-api
     runtime: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn src.api.main:app --host 0.0.0.0 --port $PORT
+    region: frankfurt  # Choisir la région la plus proche
+    plan: free  # Options: free, starter, standard, pro
+    branch: master
+
+    # Build configuration
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -r requirements.txt
+
+    # Start command with production settings
+    startCommand: uvicorn src.api.main:app --host 0.0.0.0 --port $PORT --workers 1
+
+    # Environment variables
     envVars:
       - key: PYTHONPATH
         value: /opt/render/project/src
-      - key: PORT
-        value: 8000
+      - key: PYTHON_VERSION
+        value: "3.10.12"
+      - key: ENVIRONMENT
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+
+    # Health check configuration
     healthCheckPath: /health
+
+    # Auto-deploy on push to master
+    autoDeploy: true
