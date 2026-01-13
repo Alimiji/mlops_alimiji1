@@ -59,35 +59,52 @@ def download_model_from_dagshub():
         return False
 
     # DVC file hashes from dvc.lock
-    files_to_download = {
-        "models/random_forest/Production/model.pkl": "44bebd223b998cf7e177aed1e73de3a6",
-        "models/random_forest/Production/model_info.json": "006851e7426c173879e57b2b91201121",
-    }
+    files_to_download = [
+        ("models/random_forest/Production/model_info.json", "006851e7426c173879e57b2b91201121"),
+        ("models/random_forest/Production/model.pkl", "44bebd223b998cf7e177aed1e73de3a6"),
+    ]
 
     base_url = "https://dagshub.com/Alimiji/mlops_alimiji1.dvc/files/md5"
 
+    logger.info(f"ROOT path: {ROOT}")
+    logger.info(f"MODEL_PATH: {MODEL_PATH}")
+
     try:
-        for file_path, md5_hash in files_to_download.items():
+        for file_path, md5_hash in files_to_download:
             full_path = ROOT / file_path
+            logger.info(f"Target path: {full_path}")
+
             full_path.parent.mkdir(parents=True, exist_ok=True)
 
             # DagsHub DVC storage URL format: /files/md5/{first2chars}/{remaining}
             url = f"{base_url}/{md5_hash[:2]}/{md5_hash[2:]}"
-            logger.info(f"Downloading {file_path} from DagsHub...")
+            logger.info(f"Downloading {file_path} from {url}...")
 
             response = requests.get(
                 url,
                 auth=(dagshub_user, dagshub_token),
                 stream=True,
-                timeout=300,
+                timeout=(30, 600),  # 30s connect, 600s read timeout for large file
             )
             response.raise_for_status()
 
-            with open(full_path, "wb") as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    f.write(chunk)
+            total_size = int(response.headers.get("content-length", 0))
+            logger.info(f"File size: {total_size / 1024 / 1024:.1f} MB")
 
-            logger.info(f"Downloaded {file_path} successfully")
+            downloaded = 0
+            with open(full_path, "wb") as f:
+                for chunk in response.iter_content(chunk_size=65536):
+                    f.write(chunk)
+                    downloaded += len(chunk)
+
+            logger.info(f"Downloaded {file_path}: {downloaded / 1024 / 1024:.1f} MB")
+
+            # Verify file exists
+            if full_path.exists():
+                logger.info(f"Verified: {full_path} exists, size: {full_path.stat().st_size}")
+            else:
+                logger.error(f"File not found after download: {full_path}")
+                return False
 
         return True
 
@@ -96,6 +113,9 @@ def download_model_from_dagshub():
         return False
     except Exception as e:
         logger.error(f"Unexpected error downloading model: {e}")
+        import traceback
+
+        logger.error(traceback.format_exc())
         return False
 
 
