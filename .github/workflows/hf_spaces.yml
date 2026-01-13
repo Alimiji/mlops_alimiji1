@@ -21,18 +21,25 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install huggingface-cli
+      - name: Install huggingface_hub
         run: pip install huggingface_hub
 
       - name: Push to Hugging Face Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          huggingface-cli upload Alimiji/weather-prediction-api . . \
-            --repo-type space \
-            --token $HF_TOKEN \
-            --exclude "*.git*" --exclude "__pycache__" --exclude "*.pyc" \
-            --exclude ".env" --exclude "mlruns" --exclude "data/*"
+          python -c "
+          from huggingface_hub import HfApi
+          api = HfApi()
+          api.upload_folder(
+              folder_path='.',
+              repo_id='Alimiji/weather-prediction-api',
+              repo_type='space',
+              token='$HF_TOKEN',
+              ignore_patterns=['*.git*', '__pycache__', '*.pyc', '.env', 'mlruns/*', 'data/*', 'docs/*']
+          )
+          print('Upload complete!')
+          "
 
       - name: Deployment summary
         run: |
