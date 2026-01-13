@@ -2,7 +2,6 @@
 
 from typing import Dict, List, Optional
 
-import plotly.express as px
 import plotly.graph_objects as go
 
 
@@ -17,7 +16,6 @@ def create_metrics_chart(metrics: Dict[str, float], title: str = "Model Performa
         Plotly figure object
     """
     splits = ["Train", "Validation", "Test"]
-    metric_types = ["RMSE", "MAE", "R²"]
 
     # Extract values
     rmse_values = [
@@ -29,11 +27,6 @@ def create_metrics_chart(metrics: Dict[str, float], title: str = "Model Performa
         metrics.get("train_mae", 0),
         metrics.get("valid_mae", 0),
         metrics.get("test_mae", 0),
-    ]
-    r2_values = [
-        metrics.get("train_r2", 0),
-        metrics.get("valid_r2", 0),
-        metrics.get("test_r2", 0),
     ]
 
     fig = go.Figure()

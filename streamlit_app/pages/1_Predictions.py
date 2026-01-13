@@ -2,7 +2,6 @@
 Predictions Page - Make single and batch temperature predictions.
 """
 
-import io
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -15,11 +14,11 @@ app_dir = Path(__file__).parent.parent
 if str(app_dir) not in sys.path:
     sys.path.insert(0, str(app_dir))
 
-from components.header import render_footer, render_header
-from components.sidebar import render_sidebar
+from components.header import render_footer, render_header  # noqa: E402
+from components.sidebar import render_sidebar  # noqa: E402
 
-from utils.api_client import WeatherAPIClient
-from utils.config import APP_CONFIG, FEATURE_DESCRIPTIONS, WEATHER_ICONS
+from utils.api_client import WeatherAPIClient  # noqa: E402
+from utils.config import APP_CONFIG, FEATURE_DESCRIPTIONS, WEATHER_ICONS  # noqa: E402
 
 # Page config
 st.set_page_config(
