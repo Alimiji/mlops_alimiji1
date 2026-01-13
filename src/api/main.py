@@ -3,12 +3,12 @@
 import json
 import logging
 import os
-import subprocess
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 import joblib
 import numpy as np
+import requests
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -49,60 +49,53 @@ FEATURE_ORDER = [
 ]
 
 
-def download_model_from_dvc():
-    """Download model from DagsHub using DVC if not present locally."""
+def download_model_from_dagshub():
+    """Download model from DagsHub via HTTP."""
     dagshub_token = os.getenv("DAGSHUB_TOKEN")
     dagshub_user = os.getenv("DAGSHUB_USER", "Alimiji")
 
     if not dagshub_token:
-        logger.warning("DAGSHUB_TOKEN not set, skipping DVC pull")
+        logger.warning("DAGSHUB_TOKEN not set, skipping model download")
         return False
+
+    # DVC file hashes from dvc.lock
+    files_to_download = {
+        "models/random_forest/Production/model.pkl": "44bebd223b998cf7e177aed1e73de3a6",
+        "models/random_forest/Production/model_info.json": "006851e7426c173879e57b2b91201121",
+    }
+
+    base_url = "https://dagshub.com/Alimiji/mlops_alimiji1.dvc/files/md5"
 
     try:
-        logger.info("Downloading model from DagsHub via DVC...")
+        for file_path, md5_hash in files_to_download.items():
+            full_path = ROOT / file_path
+            full_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Configure DVC remote credentials
-        subprocess.run(
-            ["dvc", "remote", "modify", "dagshub", "--local", "auth", "basic"],
-            cwd=ROOT,
-            check=True,
-            capture_output=True,
-        )
-        subprocess.run(
-            ["dvc", "remote", "modify", "dagshub", "--local", "user", dagshub_user],
-            cwd=ROOT,
-            check=True,
-            capture_output=True,
-        )
-        subprocess.run(
-            ["dvc", "remote", "modify", "dagshub", "--local", "password", dagshub_token],
-            cwd=ROOT,
-            check=True,
-            capture_output=True,
-        )
+            # DagsHub DVC storage URL format: /files/md5/{first2chars}/{remaining}
+            url = f"{base_url}/{md5_hash[:2]}/{md5_hash[2:]}"
+            logger.info(f"Downloading {file_path} from DagsHub...")
 
-        # Pull model files
-        result = subprocess.run(
-            [
-                "dvc",
-                "pull",
-                "models/random_forest/Production/model.pkl",
-                "models/random_forest/Production/model_info.json",
-            ],
-            cwd=ROOT,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        logger.info(f"DVC pull output: {result.stdout}")
-        logger.info("Model downloaded successfully from DagsHub")
+            response = requests.get(
+                url,
+                auth=(dagshub_user, dagshub_token),
+                stream=True,
+                timeout=300,
+            )
+            response.raise_for_status()
+
+            with open(full_path, "wb") as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+
+            logger.info(f"Downloaded {file_path} successfully")
+
         return True
 
-    except subprocess.CalledProcessError as e:
-        logger.error(f"DVC pull failed: {e.stderr}")
+    except requests.RequestException as e:
+        logger.error(f"Failed to download model: {e}")
         return False
-    except FileNotFoundError:
-        logger.warning("DVC not installed, skipping download")
+    except Exception as e:
+        logger.error(f"Unexpected error downloading model: {e}")
         return False
 
 
@@ -112,8 +105,8 @@ def load_model():
 
     # Try to download model if not present
     if not MODEL_PATH.exists():
-        logger.info("Model not found locally, attempting DVC pull...")
-        download_model_from_dvc()
+        logger.info("Model not found locally, downloading from DagsHub...")
+        download_model_from_dagshub()
 
     if not MODEL_PATH.exists():
         logger.error(f"Model not found at {MODEL_PATH}")
