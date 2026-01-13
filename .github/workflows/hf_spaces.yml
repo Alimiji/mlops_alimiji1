@@ -49,25 +49,21 @@ jobs:
         uses: JacobLinCool/huggingface-sync@v1
         with:
           github: ${{ secrets.GITHUB_TOKEN }}
-          huggingface: ${{ secrets.HF_TOKEN }}
-          repo: ${{ secrets.HF_SPACE_NAME || 'Alimiji/weather-prediction-api' }}
-          space: docker
-          configuration: |
-            {
-              "title": "Weather Prediction API",
-              "emoji": "🌤️",
-              "colorFrom": "blue",
-              "colorTo": "green",
-              "sdk": "docker",
-              "pinned": false
-            }
+          token: ${{ secrets.HF_TOKEN }}
+          user: Alimiji
+          space: weather-prediction-api
+          title: Weather Prediction API
+          emoji: "🌤️"
+          colorFrom: blue
+          colorTo: green
+          sdk: docker
 
       - name: Deployment summary
         run: |
           echo "## Hugging Face Spaces Deployment" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Status:** Deployed" >> $GITHUB_STEP_SUMMARY
-          echo "**Space:** https://huggingface.co/spaces/${{ secrets.HF_SPACE_NAME || 'Alimiji/weather-prediction-api' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Space:** https://huggingface.co/spaces/Alimiji/weather-prediction-api" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### API Endpoints" >> $GITHUB_STEP_SUMMARY
           echo "- Health: \`/health\`" >> $GITHUB_STEP_SUMMARY
