@@ -24,13 +24,13 @@ jobs:
       - name: Install huggingface-cli
         run: pip install huggingface_hub
 
-      - name: Login to Hugging Face
-        run: huggingface-cli login --token ${{ secrets.HF_TOKEN }}
-
       - name: Push to Hugging Face Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           huggingface-cli upload Alimiji/weather-prediction-api . . \
             --repo-type space \
+            --token $HF_TOKEN \
             --exclude "*.git*" --exclude "__pycache__" --exclude "*.pyc" \
             --exclude ".env" --exclude "mlruns" --exclude "data/*"
 
