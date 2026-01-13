@@ -3,7 +3,6 @@ Monitoring Page - Real-time API health and system status.
 """
 
 import sys
-import time
 from datetime import datetime
 from pathlib import Path
 
