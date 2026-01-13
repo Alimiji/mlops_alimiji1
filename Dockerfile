@@ -41,6 +41,12 @@ RUN mkdir -p models/random_forest/Production
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 
+# Memory optimization for numpy/scikit-learn
+ENV OMP_NUM_THREADS=1
+ENV MKL_NUM_THREADS=1
+ENV OPENBLAS_NUM_THREADS=1
+ENV NUMEXPR_NUM_THREADS=1
+
 # Change ownership to non-root user
 RUN chown -R appuser:appuser /app
 
@@ -54,5 +60,7 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
 
-# Run the API
-CMD ["python", "-m", "uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run the API with memory-optimized settings
+# --workers 1: single worker to minimize memory
+# --limit-max-requests 1000: restart worker periodically to free memory
+CMD ["python", "-m", "uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--limit-max-requests", "1000"]

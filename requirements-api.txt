@@ -1,17 +1,18 @@
-# Minimal dependencies for API deployment (Render free tier: 512MB)
-# Core ML - only what's needed for inference
-pandas>=2.0.0,<3.0.0
+# Ultra-minimal dependencies for API deployment (Render free tier: 512MB)
+# NOTE: No pandas - API uses only numpy arrays
+
+# Core ML inference only
 numpy>=1.24.0,<2.0.0
 scikit-learn>=1.3.0,<2.0.0
 joblib>=1.3.0
 
 # API framework
 fastapi>=0.109.0
-uvicorn[standard]>=0.27.0
+uvicorn>=0.27.0
 pydantic>=2.5.0
+
+# HTTP client for model download
+requests>=2.31.0
 
 # Configuration
 pyyaml>=6.0
-
-# HTTP client for model download
-httpx>=0.26.0
