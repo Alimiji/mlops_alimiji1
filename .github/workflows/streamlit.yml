@@ -89,6 +89,7 @@ jobs:
           context: ./streamlit_app
           file: ./streamlit_app/Dockerfile
           push: false
+          load: true
           tags: weather-streamlit-ui:test
           cache-from: type=gha
           cache-to: type=gha,mode=max
