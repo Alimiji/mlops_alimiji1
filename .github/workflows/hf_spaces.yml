@@ -34,15 +34,18 @@ jobs:
           lfs: true
 
       - name: Check HF token
+        id: check_token
         run: |
           if [ -z "${{ secrets.HF_TOKEN }}" ]; then
             echo "::warning::HF_TOKEN secret not set. Please add it to deploy to Hugging Face Spaces."
             echo "Go to: https://huggingface.co/settings/tokens"
-            exit 0
+            echo "has_token=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_token=true" >> $GITHUB_OUTPUT
           fi
 
       - name: Deploy to Hugging Face Spaces
-        if: ${{ secrets.HF_TOKEN != '' }}
+        if: steps.check_token.outputs.has_token == 'true'
         uses: JacobLinCool/huggingface-sync@v1
         with:
           github: ${{ secrets.GITHUB_TOKEN }}
