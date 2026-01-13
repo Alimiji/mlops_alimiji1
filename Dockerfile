@@ -10,11 +10,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for caching
-COPY requirements.txt .
+# Copy requirements first for caching (use minimal API requirements for production)
+COPY requirements-api.txt .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir --user -r requirements.txt
+# Install Python dependencies (minimal set for API deployment)
+RUN pip install --no-cache-dir --user -r requirements-api.txt
 
 # Stage 2: Production stage
 FROM python:3.10-slim as production
