@@ -13,7 +13,7 @@ class AppConfig:
 
     app_name: str = "WeatherPredict Pro"
     app_version: str = "1.0.0"
-    app_description: str = "Professional Weather Temperature Prediction Platform"
+    app_description: str = "Application de prédiction de température à London"
     company_name: str = "WeatherPredict Analytics"
 
     # API Configuration
