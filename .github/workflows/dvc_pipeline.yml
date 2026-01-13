@@ -9,6 +9,7 @@ on:
       - 'src/models/**'
       - 'params.yaml'
       - 'dvc.yaml'
+      - 'data/**'
   pull_request:
     branches: [master, main]
     paths:
@@ -17,6 +18,7 @@ on:
       - 'src/models/**'
       - 'params.yaml'
       - 'dvc.yaml'
+      - 'data/**'
   workflow_dispatch:
     inputs:
       force_repro:

@@ -1,16 +1,11 @@
 name: MLflow Experiment Tracking
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI Pipeline"]
     branches: [master, main]
-    paths:
-      - 'src/models/**'
-      - 'params.yaml'
-  pull_request:
-    branches: [master, main]
-    paths:
-      - 'src/models/**'
-      - 'params.yaml'
+    types:
+      - completed
   workflow_dispatch:
     inputs:
       experiment_name:
@@ -35,6 +30,9 @@ env:
 jobs:
   train-and-evaluate:
     runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
     outputs:
       run_id: ${{ steps.train.outputs.run_id }}
       rmse_test: ${{ steps.metrics.outputs.rmse_test }}

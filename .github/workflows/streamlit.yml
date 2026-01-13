@@ -1,15 +1,11 @@
 name: Streamlit UI CI/CD
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI Pipeline"]
     branches: [master, main]
-    paths:
-      - 'streamlit_app/**'
-      - '.github/workflows/streamlit.yml'
-  pull_request:
-    branches: [master, main]
-    paths:
-      - 'streamlit_app/**'
+    types:
+      - completed
   workflow_dispatch:
 
 concurrency:
@@ -20,6 +16,9 @@ jobs:
   lint:
     name: Lint Streamlit App
     runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
     steps:
       - uses: actions/checkout@v4
 
