@@ -2,6 +2,8 @@
 
 import json
 import logging
+import os
+import subprocess
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -47,9 +49,67 @@ FEATURE_ORDER = [
 ]
 
 
+def download_model_from_dvc():
+    """Download model from DagsHub using DVC if not present locally."""
+    dagshub_token = os.getenv("DAGSHUB_TOKEN")
+    dagshub_user = os.getenv("DAGSHUB_USER", "Alimiji")
+
+    if not dagshub_token:
+        logger.warning("DAGSHUB_TOKEN not set, skipping DVC pull")
+        return False
+
+    try:
+        logger.info("Downloading model from DagsHub via DVC...")
+
+        # Configure DVC remote credentials
+        subprocess.run(
+            ["dvc", "remote", "modify", "dagshub", "--local", "auth", "basic"],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            ["dvc", "remote", "modify", "dagshub", "--local", "user", dagshub_user],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            ["dvc", "remote", "modify", "dagshub", "--local", "password", dagshub_token],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+        )
+
+        # Pull model files
+        result = subprocess.run(
+            ["dvc", "pull", "models/random_forest/Production/model.pkl",
+             "models/random_forest/Production/model_info.json"],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        logger.info(f"DVC pull output: {result.stdout}")
+        logger.info("Model downloaded successfully from DagsHub")
+        return True
+
+    except subprocess.CalledProcessError as e:
+        logger.error(f"DVC pull failed: {e.stderr}")
+        return False
+    except FileNotFoundError:
+        logger.warning("DVC not installed, skipping download")
+        return False
+
+
 def load_model():
     """Load the trained model and metadata."""
     global model, model_info, metrics
+
+    # Try to download model if not present
+    if not MODEL_PATH.exists():
+        logger.info("Model not found locally, attempting DVC pull...")
+        download_model_from_dvc()
 
     if not MODEL_PATH.exists():
         logger.error(f"Model not found at {MODEL_PATH}")
