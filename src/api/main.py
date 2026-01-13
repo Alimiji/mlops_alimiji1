@@ -83,8 +83,12 @@ def download_model_from_dvc():
 
         # Pull model files
         result = subprocess.run(
-            ["dvc", "pull", "models/random_forest/Production/model.pkl",
-             "models/random_forest/Production/model_info.json"],
+            [
+                "dvc",
+                "pull",
+                "models/random_forest/Production/model.pkl",
+                "models/random_forest/Production/model_info.json",
+            ],
             cwd=ROOT,
             check=True,
             capture_output=True,
