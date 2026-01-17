@@ -55,18 +55,40 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          python -c "
-          from huggingface_hub import HfApi
+          python << 'PYEOF'
+          from huggingface_hub import HfApi, create_repo
+          import os
+
+          token = os.environ.get('HF_TOKEN')
+          repo_id = 'Alimiji/weather-prediction-api'
+
           api = HfApi()
+
+          # Create Space if it doesn't exist
+          try:
+              api.repo_info(repo_id=repo_id, repo_type='space', token=token)
+              print(f"Space {repo_id} already exists")
+          except Exception:
+              print(f"Creating Space {repo_id}...")
+              create_repo(
+                  repo_id=repo_id,
+                  repo_type='space',
+                  space_sdk='docker',
+                  token=token,
+                  private=False
+              )
+              print(f"Space {repo_id} created!")
+
+          # Upload files
           api.upload_folder(
               folder_path='.',
-              repo_id='Alimiji/weather-prediction-api',
+              repo_id=repo_id,
               repo_type='space',
-              token='$HF_TOKEN',
-              ignore_patterns=['*.git*', '__pycache__', '*.pyc', '.env', 'mlruns/*', 'data/*', 'docs/*', '.dvc/*']
+              token=token,
+              ignore_patterns=['*.git*', '__pycache__', '*.pyc', '.env', 'mlruns/*', 'data/*', 'docs/*', '.dvc/*', 'tests/*', 'notebooks/*']
           )
           print('Upload complete!')
-          "
+          PYEOF
 
       - name: Deployment summary
         run: |
