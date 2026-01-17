@@ -20,9 +20,10 @@ RUN pip install --no-cache-dir -r requirements-api.txt
 # Copy application code
 COPY src/ ./src/
 COPY params.yaml ./
+COPY metrics.json ./
 
-# Create models directory
-RUN mkdir -p models/random_forest/Production
+# Copy model files (downloaded by workflow)
+COPY models/ ./models/
 
 # Set environment variables
 ENV PYTHONPATH=/app

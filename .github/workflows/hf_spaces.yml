@@ -21,8 +21,35 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install huggingface_hub
-        run: pip install huggingface_hub
+      - name: Install dependencies
+        run: pip install huggingface_hub dvc[s3]
+
+      - name: Configure DVC with DagsHub
+        env:
+          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+        run: |
+          dvc remote modify origin --local auth basic
+          dvc remote modify origin --local user Alimiji
+          dvc remote modify origin --local password $DAGSHUB_TOKEN
+
+      - name: Pull model from DVC
+        run: |
+          dvc pull models/random_forest/Production/model.pkl.dvc -v || echo "DVC pull failed, trying direct download"
+          dvc pull models/random_forest/Production/model_info.json.dvc -v || true
+          # Verify model exists
+          if [ -f "models/random_forest/Production/model.pkl" ]; then
+            echo "Model downloaded successfully"
+            ls -la models/random_forest/Production/
+          else
+            echo "Model not found, downloading from DagsHub directly..."
+            mkdir -p models/random_forest/Production
+            curl -u "Alimiji:${{ secrets.DAGSHUB_TOKEN }}" \
+              -o models/random_forest/Production/model.pkl \
+              "https://dagshub.com/Alimiji/mlops_alimiji1.dvc/files/md5/44/bebd223b998cf7e177aed1e73de3a6"
+            curl -u "Alimiji:${{ secrets.DAGSHUB_TOKEN }}" \
+              -o models/random_forest/Production/model_info.json \
+              "https://dagshub.com/Alimiji/mlops_alimiji1.dvc/files/md5/00/6851e7426c173879e57b2b91201121"
+          fi
 
       - name: Push to Hugging Face Space
         env:
@@ -36,7 +63,7 @@ jobs:
               repo_id='Alimiji/weather-prediction-api',
               repo_type='space',
               token='$HF_TOKEN',
-              ignore_patterns=['*.git*', '__pycache__', '*.pyc', '.env', 'mlruns/*', 'data/*', 'docs/*']
+              ignore_patterns=['*.git*', '__pycache__', '*.pyc', '.env', 'mlruns/*', 'data/*', 'docs/*', '.dvc/*']
           )
           print('Upload complete!')
           "
