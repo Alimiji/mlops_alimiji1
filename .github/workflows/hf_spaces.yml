@@ -64,30 +64,30 @@ jobs:
 
       - name: Prepare HF Spaces README
         run: |
-          # Create HF Spaces README with required frontmatter
           cat > README.md << 'HFEOF'
-          ---
-          title: Weather Prediction API
-          emoji: 🌡️
-          colorFrom: blue
-          colorTo: green
-          sdk: docker
-          pinned: false
-          license: mit
-          ---
+---
+title: Weather Prediction API
+emoji: 🌡️
+colorFrom: blue
+colorTo: green
+sdk: docker
+pinned: false
+license: mit
+---
 
-          # Weather Temperature Prediction API
+# Weather Temperature Prediction API
 
-          FastAPI-based ML API for predicting mean temperature.
+FastAPI-based ML API for predicting mean temperature.
 
-          ## Endpoints
-          - `GET /health` - Health check
-          - `POST /predict` - Single prediction
-          - `GET /metrics` - Model metrics
-          - `GET /docs` - API documentation
-          HFEOF
-          echo "README.md created for HF Spaces:"
+## Endpoints
+- GET /health - Health check
+- POST /predict - Single prediction
+- GET /metrics - Model metrics
+- GET /docs - API documentation
+HFEOF
+          echo "=== README.md content ==="
           cat README.md
+          echo "=== End README.md ==="
 
       - name: Push to Hugging Face Space
         env:
