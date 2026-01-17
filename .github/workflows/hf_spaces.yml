@@ -62,6 +62,14 @@ jobs:
             exit 1
           fi
 
+      - name: Prepare HF Spaces README
+        run: |
+          # Use HF-specific README with frontmatter config
+          if [ -f "README_HF.md" ]; then
+            cp README_HF.md README.md
+            echo "README.md prepared for HF Spaces"
+          fi
+
       - name: Push to Hugging Face Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}

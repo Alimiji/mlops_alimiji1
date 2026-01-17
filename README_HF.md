@@ -1,6 +1,6 @@
 ---
 title: Weather Prediction API
-emoji: 🌤️
+emoji: 🌡️
 colorFrom: blue
 colorTo: green
 sdk: docker
@@ -10,42 +10,22 @@ license: mit
 
 # Weather Temperature Prediction API
 
-A FastAPI-based ML API for predicting mean temperature using Random Forest.
+FastAPI-based machine learning API for predicting mean temperature based on weather features.
 
-## API Endpoints
+## Features
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/` | GET | API info |
-| `/health` | GET | Health check |
-| `/predict` | POST | Single prediction |
-| `/predict/batch` | POST | Batch predictions |
-| `/metrics` | GET | Model metrics |
-| `/docs` | GET | Swagger UI |
+- **Single Prediction**: POST `/predict` with weather features
+- **Batch Prediction**: POST `/predict/batch` for multiple predictions
+- **Model Metrics**: GET `/metrics` for performance metrics
+- **Health Check**: GET `/health` for API status
 
-## Usage Example
+## API Documentation
 
-```python
-import requests
+Once running, access the interactive API docs at `/docs`
 
-response = requests.post(
-    "https://YOUR-SPACE.hf.space/predict",
-    json={
-        "min_temp": 5.0,
-        "max_temp": 15.0,
-        "global_radiation": 100.0,
-        "sunshine": 6.0,
-        "cloud_cover": 5.0,
-        "precipitation": 0.0,
-        "pressure": 101325.0,
-        "snow_depth": 0.0
-    }
-)
-print(response.json())
-```
-
-## Model Info
+## Model
 
 - **Algorithm**: Random Forest Regressor
-- **Target**: Mean Temperature (°C)
-- **Features**: 8 weather variables
+- **Features**: min_temp, max_temp, global_radiation, sunshine, cloud_cover, precipitation, pressure, snow_depth
+- **Target**: Mean temperature (°C)
+- **Performance**: R² = 0.96, RMSE = 1.10°C
