@@ -51,6 +51,17 @@ jobs:
               "https://dagshub.com/Alimiji/mlops_alimiji1.dvc/files/md5/00/6851e7426c173879e57b2b91201121"
           fi
 
+      - name: Verify model files exist
+        run: |
+          echo "=== Checking model files ==="
+          ls -la models/random_forest/Production/ || echo "Model directory not found!"
+          if [ -f "models/random_forest/Production/model.pkl" ]; then
+            echo "Model file exists: $(du -h models/random_forest/Production/model.pkl)"
+          else
+            echo "ERROR: Model file not found!"
+            exit 1
+          fi
+
       - name: Push to Hugging Face Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
@@ -58,36 +69,61 @@ jobs:
           python << 'PYEOF'
           from huggingface_hub import HfApi, create_repo
           import os
+          import sys
 
           token = os.environ.get('HF_TOKEN')
+          if not token:
+              print("ERROR: HF_TOKEN not set!")
+              sys.exit(1)
+
           repo_id = 'Alimiji/weather-prediction-api'
+          print(f"Token length: {len(token)} chars")
+          print(f"Target repo: {repo_id}")
 
           api = HfApi()
 
+          # Test token validity
+          try:
+              user_info = api.whoami(token=token)
+              print(f"Authenticated as: {user_info.get('name', 'unknown')}")
+          except Exception as e:
+              print(f"ERROR: Token validation failed: {e}")
+              sys.exit(1)
+
           # Create Space if it doesn't exist
           try:
-              api.repo_info(repo_id=repo_id, repo_type='space', token=token)
-              print(f"Space {repo_id} already exists")
-          except Exception:
-              print(f"Creating Space {repo_id}...")
-              create_repo(
-                  repo_id=repo_id,
-                  repo_type='space',
-                  space_sdk='docker',
-                  token=token,
-                  private=False
-              )
-              print(f"Space {repo_id} created!")
+              info = api.repo_info(repo_id=repo_id, repo_type='space', token=token)
+              print(f"Space {repo_id} already exists (SDK: {info.cardData.get('sdk', 'unknown') if info.cardData else 'unknown'})")
+          except Exception as e:
+              print(f"Space not found ({e}), creating...")
+              try:
+                  create_repo(
+                      repo_id=repo_id,
+                      repo_type='space',
+                      space_sdk='docker',
+                      token=token,
+                      private=False,
+                      exist_ok=True
+                  )
+                  print(f"Space {repo_id} created successfully!")
+              except Exception as create_err:
+                  print(f"ERROR creating space: {create_err}")
+                  sys.exit(1)
 
           # Upload files
-          api.upload_folder(
-              folder_path='.',
-              repo_id=repo_id,
-              repo_type='space',
-              token=token,
-              ignore_patterns=['*.git*', '__pycache__', '*.pyc', '.env', 'mlruns/*', 'data/*', 'docs/*', '.dvc/*', 'tests/*', 'notebooks/*']
-          )
-          print('Upload complete!')
+          print("Uploading files to Space...")
+          try:
+              api.upload_folder(
+                  folder_path='.',
+                  repo_id=repo_id,
+                  repo_type='space',
+                  token=token,
+                  ignore_patterns=['*.git*', '__pycache__', '*.pyc', '.env', 'mlruns/*', 'data/*', 'docs/*', '.dvc/*', 'tests/*', 'notebooks/*', 'streamlit_app/*']
+              )
+              print('Upload complete!')
+          except Exception as upload_err:
+              print(f"ERROR uploading: {upload_err}")
+              sys.exit(1)
           PYEOF
 
       - name: Deployment summary
