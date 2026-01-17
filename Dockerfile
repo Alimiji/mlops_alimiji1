@@ -39,3 +39,5 @@ EXPOSE 7860
 
 # Run the API
 CMD ["python", "-m", "uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "7860"]
+
+# Build trigger: 20260117
