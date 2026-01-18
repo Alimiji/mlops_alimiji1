@@ -27,7 +27,6 @@ src/models/mlruns
 !src/models/train_model.py
 !src/models/evaluate_model.py
 !src/data/
-/metrics.json
 mlflow.db
 models/random_forest/Production/model.pkl
 
