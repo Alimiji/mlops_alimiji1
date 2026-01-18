@@ -71,6 +71,42 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install DVC
+        run: pip install dvc[s3]
+
+      - name: Configure DVC with DagsHub
+        env:
+          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+        run: |
+          dvc remote modify dagshub --local auth basic
+          dvc remote modify dagshub --local user Alimiji
+          dvc remote modify dagshub --local password $DAGSHUB_TOKEN
+
+      - name: Pull model from DVC
+        env:
+          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+        run: |
+          dvc pull models/random_forest/Production/model.pkl.dvc -v || true
+          dvc pull models/random_forest/Production/model_info.json.dvc -v || true
+          # Fallback to direct download
+          if [ ! -f "models/random_forest/Production/model.pkl" ]; then
+            echo "DVC pull failed, downloading directly from DagsHub..."
+            mkdir -p models/random_forest/Production
+            curl -u "Alimiji:$DAGSHUB_TOKEN" \
+              -o models/random_forest/Production/model.pkl \
+              "https://dagshub.com/Alimiji/mlops_alimiji1.dvc/files/md5/44/bebd223b998cf7e177aed1e73de3a6"
+            curl -u "Alimiji:$DAGSHUB_TOKEN" \
+              -o models/random_forest/Production/model_info.json \
+              "https://dagshub.com/Alimiji/mlops_alimiji1.dvc/files/md5/00/6851e7426c173879e57b2b91201121"
+          fi
+          echo "Model files:"
+          ls -la models/random_forest/Production/
+
       - name: Set image name to lowercase
         id: image_name
         run: echo "name=${GITHUB_REPOSITORY,,}" >> $GITHUB_OUTPUT
@@ -121,13 +157,13 @@ jobs:
           IMAGE="${{ env.REGISTRY }}/${{ needs.build-and-push.outputs.image_name }}:latest"
           echo "Pulling image: $IMAGE"
           docker pull "$IMAGE"
-          docker run -d --name test-api -p 8000:8000 "$IMAGE"
+          docker run -d --name test-api -p 7860:7860 "$IMAGE"
           sleep 10
 
       - name: Health check
         run: |
           for i in {1..5}; do
-            response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health || echo "000")
+            response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:7860/health || echo "000")
             if [ "$response" = "200" ]; then
               echo "Health check passed!"
               exit 0
