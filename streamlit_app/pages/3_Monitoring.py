@@ -128,16 +128,14 @@ def main():
         if model_response.success:
             model_info = model_response.data
 
-            st.markdown(
-                f"""
+            st.markdown(f"""
                 | Property | Value |
                 |----------|-------|
                 | **Model Type** | {model_info.get('model_type', 'Unknown')} |
                 | **Run ID** | `{model_info.get('run_id', 'Unknown')[:16]}...` |
                 | **Experiment** | {model_info.get('experiment_name', 'Unknown')} |
                 | **Features** | {len(model_info.get('features', []))} |
-                """
-            )
+                """)
 
             # Reload button
             st.markdown("---")

@@ -103,15 +103,13 @@ def main():
     render_header(subtitle=f"{WEATHER_ICONS['sun']} Welcome to the Weather Prediction Platform")
 
     # Main content
-    st.markdown(
-        """
+    st.markdown("""
         ### About This Platform
 
         **WeatherPredict Pro** is a professional-grade machine learning platform for
         temperature prediction. Our model uses advanced Random Forest algorithms trained
         on decades of London weather data to provide accurate mean temperature forecasts.
-        """
-    )
+        """)
 
     # Feature cards
     col1, col2, col3, col4 = st.columns(4)
@@ -196,16 +194,14 @@ def main():
     # Getting started
     st.markdown("---")
     st.subheader("Getting Started")
-    st.markdown(
-        """
+    st.markdown("""
         1. **Navigate** to the **Predictions** page to make temperature forecasts
         2. **Check** the **Dashboard** for detailed model performance metrics
         3. **Monitor** the **Monitoring** page for API health status
         4. **Review** the **History** page to see and export past predictions
 
         Use the sidebar to navigate between pages.
-        """
-    )
+        """)
 
     # Render footer
     render_footer()

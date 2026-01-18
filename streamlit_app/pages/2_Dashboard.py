@@ -132,15 +132,13 @@ def main():
         if model_response.success:
             model_info = model_response.data
 
-            st.markdown(
-                f"""
+            st.markdown(f"""
                 | Property | Value |
                 |----------|-------|
                 | **Model Type** | {model_info.get('model_type', 'Unknown')} |
                 | **Experiment** | {model_info.get('experiment_name', 'Unknown')} |
                 | **Run ID** | `{model_info.get('run_id', 'Unknown')[:20]}...` |
-                """
-            )
+                """)
 
             st.markdown("**Hyperparameters:**")
             params = model_info.get("params", {})
@@ -191,16 +189,14 @@ def main():
 
     # Metric explanations
     with st.expander("Metric Explanations"):
-        st.markdown(
-            """
+        st.markdown("""
             - **RMSE (Root Mean Square Error)**: Average prediction error in °C. Lower is better.
             - **MAE (Mean Absolute Error)**: Average absolute prediction error in °C. Lower is better.
             - **R² Score**: Proportion of variance explained by the model. Closer to 1.0 is better.
             - **Train**: Performance on training data (may show overfitting if much better than test).
             - **Validation**: Performance on validation data used for hyperparameter tuning.
             - **Test**: Performance on held-out test data (best indicator of real-world performance).
-            """
-        )
+            """)
 
     render_footer()
 

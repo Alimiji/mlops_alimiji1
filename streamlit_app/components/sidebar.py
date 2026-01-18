@@ -61,14 +61,12 @@ def render_sidebar():
         # Navigation hints
         st.markdown("---")
         st.caption("**Navigation**")
-        st.markdown(
-            f"""
+        st.markdown(f"""
             - {WEATHER_ICONS['prediction']} **Predictions**: Make forecasts
             - {WEATHER_ICONS['metrics']} **Dashboard**: View metrics
             - {WEATHER_ICONS['monitoring']} **Monitoring**: API health
             - {WEATHER_ICONS['history']} **History**: Past predictions
-            """
-        )
+            """)
 
         # Version info at bottom
         st.markdown("---")
