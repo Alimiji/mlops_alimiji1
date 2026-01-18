@@ -7,6 +7,7 @@ on:
       - 'src/api/**'
       - 'Dockerfile'
       - 'requirements-api.txt'
+      - 'metrics.json'
   workflow_dispatch:
 
 jobs:
@@ -33,163 +34,117 @@ jobs:
           dvc remote modify dagshub --local password $DAGSHUB_TOKEN
 
       - name: Pull model from DVC
+        env:
+          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
         run: |
-          dvc pull models/random_forest/Production/model.pkl.dvc -v || echo "DVC pull failed, trying direct download"
+          dvc pull models/random_forest/Production/model.pkl.dvc -v || true
           dvc pull models/random_forest/Production/model_info.json.dvc -v || true
-          # Verify model exists
-          if [ -f "models/random_forest/Production/model.pkl" ]; then
-            echo "Model downloaded successfully"
-            ls -la models/random_forest/Production/
-          else
-            echo "Model not found, downloading from DagsHub directly..."
+
+          # Fallback to direct download if DVC fails
+          if [ ! -f "models/random_forest/Production/model.pkl" ]; then
+            echo "DVC pull failed, downloading directly from DagsHub..."
             mkdir -p models/random_forest/Production
-            curl -u "Alimiji:${{ secrets.DAGSHUB_TOKEN }}" \
+            curl -u "Alimiji:$DAGSHUB_TOKEN" \
               -o models/random_forest/Production/model.pkl \
               "https://dagshub.com/Alimiji/mlops_alimiji1.dvc/files/md5/44/bebd223b998cf7e177aed1e73de3a6"
-            curl -u "Alimiji:${{ secrets.DAGSHUB_TOKEN }}" \
+            curl -u "Alimiji:$DAGSHUB_TOKEN" \
               -o models/random_forest/Production/model_info.json \
               "https://dagshub.com/Alimiji/mlops_alimiji1.dvc/files/md5/00/6851e7426c173879e57b2b91201121"
           fi
 
-      - name: Verify model files exist
+      - name: Verify model exists
         run: |
-          echo "=== Checking model files ==="
-          ls -la models/random_forest/Production/ || echo "Model directory not found!"
-          if [ -f "models/random_forest/Production/model.pkl" ]; then
-            echo "Model file exists: $(du -h models/random_forest/Production/model.pkl)"
-          else
-            echo "ERROR: Model file not found!"
+          if [ ! -f "models/random_forest/Production/model.pkl" ]; then
+            echo "ERROR: Model not found!"
             exit 1
           fi
+          echo "Model size: $(du -h models/random_forest/Production/model.pkl)"
 
-      - name: Prepare HF Spaces README
-        run: |
-          cat > README.md << 'HFEOF'
----
-title: Weather Prediction API
-emoji: 🌡️
-colorFrom: blue
-colorTo: green
-sdk: docker
-pinned: false
-license: mit
----
-
-# Weather Temperature Prediction API
-
-FastAPI-based ML API for predicting mean temperature.
-
-## Endpoints
-- GET /health - Health check
-- POST /predict - Single prediction
-- GET /metrics - Model metrics
-- GET /docs - API documentation
-HFEOF
-          echo "=== README.md content ==="
-          cat README.md
-          echo "=== End README.md ==="
-
-      - name: Configure HF Space secrets
+      - name: Deploy to Hugging Face Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
         run: |
-          python << 'PYEOF'
-          from huggingface_hub import HfApi
+          python << 'EOF'
           import os
-
-          api = HfApi()
-          token = os.environ.get('HF_TOKEN')
-          dagshub_token = os.environ.get('DAGSHUB_TOKEN')
-          repo_id = 'Alimiji/weather-prediction-api'
-
-          # Add DAGSHUB secrets to HF Space
-          try:
-              api.add_space_secret(repo_id=repo_id, key="DAGSHUB_TOKEN", value=dagshub_token, token=token)
-              api.add_space_secret(repo_id=repo_id, key="DAGSHUB_USER", value="Alimiji", token=token)
-              print("HF Space secrets configured successfully")
-          except Exception as e:
-              print(f"Warning: Could not set secrets: {e}")
-          PYEOF
-
-      - name: Push to Hugging Face Space
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: |
-          python << 'PYEOF'
           from huggingface_hub import HfApi, create_repo
-          import os
-          import sys
 
           token = os.environ.get('HF_TOKEN')
-          if not token:
-              print("ERROR: HF_TOKEN not set!")
-              sys.exit(1)
-
           repo_id = 'Alimiji/weather-prediction-api'
-          print(f"Token length: {len(token)} chars")
-          print(f"Target repo: {repo_id}")
 
           api = HfApi()
 
-          # Test token validity
+          # Verify token
           try:
-              user_info = api.whoami(token=token)
-              print(f"Authenticated as: {user_info.get('name', 'unknown')}")
+              user = api.whoami(token=token)
+              print(f"Authenticated as: {user['name']}")
           except Exception as e:
-              print(f"ERROR: Token validation failed: {e}")
-              sys.exit(1)
+              print(f"Auth error: {e}")
+              exit(1)
 
-          # Create Space if it doesn't exist
+          # Create Space if needed
           try:
-              info = api.repo_info(repo_id=repo_id, repo_type='space', token=token)
-              print(f"Space {repo_id} already exists (SDK: {info.cardData.get('sdk', 'unknown') if info.cardData else 'unknown'})")
+              create_repo(
+                  repo_id=repo_id,
+                  repo_type='space',
+                  space_sdk='docker',
+                  token=token,
+                  exist_ok=True,
+                  private=False
+              )
+              print(f"Space {repo_id} ready")
           except Exception as e:
-              print(f"Space not found ({e}), creating...")
-              try:
-                  create_repo(
-                      repo_id=repo_id,
-                      repo_type='space',
-                      space_sdk='docker',
-                      token=token,
-                      private=False,
-                      exist_ok=True
-                  )
-                  print(f"Space {repo_id} created successfully!")
-              except Exception as create_err:
-                  print(f"ERROR creating space: {create_err}")
-                  sys.exit(1)
+              print(f"Create repo error: {e}")
 
-          # Upload files - use allow_patterns to explicitly include model
-          print("Uploading files to Space...")
-          print("Model file size check:")
-          import os
-          model_path = 'models/random_forest/Production/model.pkl'
-          if os.path.exists(model_path):
-              size_mb = os.path.getsize(model_path) / (1024*1024)
-              print(f"  {model_path}: {size_mb:.1f} MB")
-          else:
-              print(f"  WARNING: {model_path} not found!")
+          # Create README with HF metadata
+          readme_content = """---
+          title: Weather Prediction API
+          emoji: 🌡️
+          colorFrom: blue
+          colorTo: green
+          sdk: docker
+          pinned: false
+          license: mit
+          ---
 
+          # Weather Temperature Prediction API
+
+          FastAPI ML API for temperature prediction.
+
+          ## Endpoints
+          - GET /health - Health check
+          - POST /predict - Make prediction
+          - GET /docs - API documentation
+          """
+
+          with open('README.md', 'w') as f:
+              f.write(readme_content.strip())
+
+          # Upload files
+          print("Uploading to HF Space...")
           try:
               api.upload_folder(
                   folder_path='.',
                   repo_id=repo_id,
                   repo_type='space',
                   token=token,
-                  ignore_patterns=['*.git*', '__pycache__', '*.pyc', '.env', 'mlruns/*', 'data/*', 'docs/*', '.dvc/*', 'tests/*', 'notebooks/*', 'streamlit_app/*', '*.dvc'],
-                  allow_patterns=['models/**', 'src/**', 'Dockerfile', 'requirements-api.txt', 'params.yaml', 'metrics.json', 'README.md']
+                  ignore_patterns=[
+                      '.git*', '__pycache__', '*.pyc', '.env',
+                      'mlruns/*', 'data/*', 'docs/*', '.dvc/*',
+                      'tests/*', 'notebooks/*', 'streamlit_app/*',
+                      '*.dvc', '.venv/*'
+                  ]
               )
-              print('Upload complete!')
-          except Exception as upload_err:
-              print(f"ERROR uploading: {upload_err}")
-              sys.exit(1)
-          PYEOF
+              print("Upload complete!")
+              print(f"Space URL: https://huggingface.co/spaces/{repo_id}")
+          except Exception as e:
+              print(f"Upload error: {e}")
+              exit(1)
+          EOF
 
       - name: Deployment summary
         run: |
           echo "## 🚀 Deployed to Hugging Face Spaces" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**URL:** https://huggingface.co/spaces/Alimiji/weather-prediction-api" >> $GITHUB_STEP_SUMMARY
+          echo "**Space URL:** https://huggingface.co/spaces/Alimiji/weather-prediction-api" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**API Docs:** https://alimiji-weather-prediction-api.hf.space/docs" >> $GITHUB_STEP_SUMMARY
+          echo "**API URL:** https://alimiji-weather-prediction-api.hf.space" >> $GITHUB_STEP_SUMMARY
