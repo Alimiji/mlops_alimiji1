@@ -119,8 +119,40 @@ jobs:
           with open('README.md', 'w') as f:
               f.write(readme_content.strip())
 
-          # Upload files
-          print("Uploading to HF Space...")
+          # Upload model first (force include despite .gitignore)
+          print("Uploading model file...")
+          import os
+          model_path = "models/random_forest/Production/model.pkl"
+          if os.path.exists(model_path):
+              model_size = os.path.getsize(model_path) / (1024*1024)
+              print(f"Model size: {model_size:.1f} MB")
+              try:
+                  api.upload_file(
+                      path_or_fileobj=model_path,
+                      path_in_repo=model_path,
+                      repo_id=repo_id,
+                      repo_type='space',
+                      token=token
+                  )
+                  print("Model uploaded!")
+              except Exception as e:
+                  print(f"Model upload error: {e}")
+                  exit(1)
+
+          # Upload model_info.json
+          info_path = "models/random_forest/Production/model_info.json"
+          if os.path.exists(info_path):
+              api.upload_file(
+                  path_or_fileobj=info_path,
+                  path_in_repo=info_path,
+                  repo_id=repo_id,
+                  repo_type='space',
+                  token=token
+              )
+              print("Model info uploaded!")
+
+          # Upload other files
+          print("Uploading other files to HF Space...")
           try:
               api.upload_folder(
                   folder_path='.',
@@ -131,7 +163,7 @@ jobs:
                       '.git*', '__pycache__', '*.pyc', '.env',
                       'mlruns/*', 'data/*', 'docs/*', '.dvc/*',
                       'tests/*', 'notebooks/*', 'streamlit_app/*',
-                      '*.dvc', '.venv/*'
+                      '*.dvc', '.venv/*', 'models/*'
                   ]
               )
               print("Upload complete!")
