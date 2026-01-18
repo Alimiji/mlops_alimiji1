@@ -89,6 +89,29 @@ HFEOF
           cat README.md
           echo "=== End README.md ==="
 
+      - name: Configure HF Space secrets
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+        run: |
+          python << 'PYEOF'
+          from huggingface_hub import HfApi
+          import os
+
+          api = HfApi()
+          token = os.environ.get('HF_TOKEN')
+          dagshub_token = os.environ.get('DAGSHUB_TOKEN')
+          repo_id = 'Alimiji/weather-prediction-api'
+
+          # Add DAGSHUB secrets to HF Space
+          try:
+              api.add_space_secret(repo_id=repo_id, key="DAGSHUB_TOKEN", value=dagshub_token, token=token)
+              api.add_space_secret(repo_id=repo_id, key="DAGSHUB_USER", value="Alimiji", token=token)
+              print("HF Space secrets configured successfully")
+          except Exception as e:
+              print(f"Warning: Could not set secrets: {e}")
+          PYEOF
+
       - name: Push to Hugging Face Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
@@ -137,15 +160,25 @@ HFEOF
                   print(f"ERROR creating space: {create_err}")
                   sys.exit(1)
 
-          # Upload files
+          # Upload files - use allow_patterns to explicitly include model
           print("Uploading files to Space...")
+          print("Model file size check:")
+          import os
+          model_path = 'models/random_forest/Production/model.pkl'
+          if os.path.exists(model_path):
+              size_mb = os.path.getsize(model_path) / (1024*1024)
+              print(f"  {model_path}: {size_mb:.1f} MB")
+          else:
+              print(f"  WARNING: {model_path} not found!")
+
           try:
               api.upload_folder(
                   folder_path='.',
                   repo_id=repo_id,
                   repo_type='space',
                   token=token,
-                  ignore_patterns=['*.git*', '__pycache__', '*.pyc', '.env', 'mlruns/*', 'data/*', 'docs/*', '.dvc/*', 'tests/*', 'notebooks/*', 'streamlit_app/*']
+                  ignore_patterns=['*.git*', '__pycache__', '*.pyc', '.env', 'mlruns/*', 'data/*', 'docs/*', '.dvc/*', 'tests/*', 'notebooks/*', 'streamlit_app/*', '*.dvc'],
+                  allow_patterns=['models/**', 'src/**', 'Dockerfile', 'requirements-api.txt', 'params.yaml', 'metrics.json', 'README.md']
               )
               print('Upload complete!')
           except Exception as upload_err:
