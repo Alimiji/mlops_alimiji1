@@ -107,6 +107,15 @@ jobs:
           echo "Model files:"
           ls -la models/random_forest/Production/
 
+      - name: Verify model before Docker build
+        run: |
+          if [ ! -f "models/random_forest/Production/model.pkl" ]; then
+            echo "ERROR: Model file not found! Docker build will fail."
+            exit 1
+          fi
+          MODEL_SIZE=$(du -h models/random_forest/Production/model.pkl | cut -f1)
+          echo "Model verified: $MODEL_SIZE"
+
       - name: Set image name to lowercase
         id: image_name
         run: echo "name=${GITHUB_REPOSITORY,,}" >> $GITHUB_OUTPUT
@@ -140,8 +149,7 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          no-cache: true
           provenance: false
           sbom: false
 
