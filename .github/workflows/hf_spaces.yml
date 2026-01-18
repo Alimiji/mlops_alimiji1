@@ -28,9 +28,9 @@ jobs:
         env:
           DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
         run: |
-          dvc remote modify origin --local auth basic
-          dvc remote modify origin --local user Alimiji
-          dvc remote modify origin --local password $DAGSHUB_TOKEN
+          dvc remote modify dagshub --local auth basic
+          dvc remote modify dagshub --local user Alimiji
+          dvc remote modify dagshub --local password $DAGSHUB_TOKEN
 
       - name: Pull model from DVC
         run: |
